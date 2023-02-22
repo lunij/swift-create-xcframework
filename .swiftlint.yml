@@ -1,12 +1,3 @@
-disabled_rules:
-  - no_space_in_method_call
-  - object_literal
-  - prefixed_toplevel_constant
-  - todo
-  - let_var_whitespace
-  - type_name
-  - vertical_whitespace
-
 opt_in_rules:
   - anyobject_protocol
   - array_init
@@ -51,11 +42,10 @@ opt_in_rules:
   - sorted_first_last
   - sorted_imports
   - static_operator
-  - strong_iboutlet
   - toggle_bool
   - unavailable_function
   - unneeded_parentheses_in_closure_argument
-  - vertical_parameter_alignment_on_call  
+  - vertical_parameter_alignment_on_call
   - xct_specific_matcher
   - yoda_condition
 
@@ -63,8 +53,7 @@ cyclomatic_complexity:
   ignores_case_statements: true
 
 line_length:
-  ignores_function_declarations: true
-  warning: 180
+  warning: 170
 
 identifier_name:
   excluded: [id, x, y, z, r, g, b, a, i, j, k, cx, cy, dx, dy, _rootGroup]
@@ -76,9 +65,3 @@ modifier_order:
 
 nesting:
   type_level: 2
-
-included:
-  - "Sources"
-
-excluded:
-  - "Package.swift"
