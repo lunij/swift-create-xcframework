@@ -1,4 +1,3 @@
-
 import ArgumentParser
 #if swift(>=5.6)
 import Basics
@@ -18,51 +17,50 @@ import Workspace
 import Xcodeproj
 
 struct PackageInfo {
-
     // MARK: - Properties
 
     let rootDirectory: Foundation.URL
     let buildDirectory: Foundation.URL
 
     var projectBuildDirectory: Foundation.URL {
-        return self.buildDirectory
+        buildDirectory
             .appendingPathComponent("swift-create-xcframework")
             .absoluteURL
     }
 
     var hasDistributionBuildXcconfig: Bool {
-        self.overridesXcconfig != nil || self.options.stackEvolution == false
+        overridesXcconfig != nil || options.stackEvolution == false
     }
 
     var distributionBuildXcconfig: Foundation.URL {
-        return self.projectBuildDirectory
+        projectBuildDirectory
             .appendingPathComponent("Distribution.xcconfig")
             .absoluteURL
     }
 
     var overridesXcconfig: Foundation.URL? {
-        guard let path = self.options.xcconfig else { return nil }
+        guard let path = options.xcconfig else { return nil }
 
         // absolute path
         if path.hasPrefix("/") {
             return Foundation.URL(fileURLWithPath: path)
 
-        // strip current directory if thats where we are
+            // strip current directory if thats where we are
         } else if path.hasPrefix("./") {
-            return self.rootDirectory.appendingPathComponent(String(path[path.index(path.startIndex, offsetBy: 2)...]))
+            return rootDirectory.appendingPathComponent(String(path[path.index(path.startIndex, offsetBy: 2)...]))
         }
 
-        return self.rootDirectory.appendingPathComponent(path)
+        return rootDirectory.appendingPathComponent(path)
     }
 
     // TODO: Map diagnostics to swift-log
-#if swift(>=5.6)
+    #if swift(>=5.6)
     let observabilitySystem = ObservabilitySystem { _, diagnostics in
         print("\(diagnostics.severity): \(diagnostics.message)")
     }
-#else
+    #else
     let diagnostics = DiagnosticsEngine()
-#endif
+    #endif
 
     let options: Command.Options
     let graph: PackageGraph
@@ -70,40 +68,39 @@ struct PackageInfo {
     let toolchain: UserToolchain
     let workspace: Workspace
 
-
     // MARK: - Initialisation
 
-    init (options: Command.Options) throws { // swiftlint:disable:this function_body_length
+    init(options: Command.Options) throws { // swiftlint:disable:this function_body_length
         self.options = options
-        self.rootDirectory = Foundation.URL(fileURLWithPath: options.packagePath, isDirectory: true).absoluteURL
-        self.buildDirectory = self.rootDirectory.appendingPathComponent(options.buildPath, isDirectory: true).absoluteURL
+        rootDirectory = Foundation.URL(fileURLWithPath: options.packagePath, isDirectory: true).absoluteURL
+        buildDirectory = rootDirectory.appendingPathComponent(options.buildPath, isDirectory: true).absoluteURL
 
-        let root = AbsolutePath(self.rootDirectory.path)
+        let root = AbsolutePath(rootDirectory.path)
 
-        self.toolchain = try UserToolchain(destination: try .hostDestination())
+        toolchain = try UserToolchain(destination: try .hostDestination())
 
         #if swift(>=5.7)
-        let loader = ManifestLoader(toolchain: self.toolchain)
+        let loader = ManifestLoader(toolchain: toolchain)
         self.workspace = try Workspace(forRootPackage: root, customManifestLoader: loader)
         #elseif swift(>=5.6)
-        let resources = ToolchainConfiguration(swiftCompilerPath: self.toolchain.swiftCompilerPath)
+        let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
         let loader = ManifestLoader(toolchain: resources)
         self.workspace = try Workspace(forRootPackage: root, customManifestLoader: loader)
         #else
         #if swift(>=5.5)
-        let resources = try UserManifestResources(swiftCompiler: self.toolchain.swiftCompiler, swiftCompilerFlags: [])
+        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler, swiftCompilerFlags: [])
         #else
-        let resources = try UserManifestResources(swiftCompiler: self.toolchain.swiftCompiler)
+        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler)
         #endif
         let loader = ManifestLoader(manifestResources: resources)
         self.workspace = Workspace.create(forRootPackage: root, manifestLoader: loader)
         #endif
 
         #if swift(>=5.6)
-        self.graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: self.observabilitySystem.topScope)
-        let workspace = self.workspace
+        graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
+        let workspace = workspace
         let scope = observabilitySystem.topScope
-        self.manifest = try tsc_await {
+        manifest = try tsc_await {
             workspace.loadRootManifest(
                 at: root,
                 observabilityScope: scope,
@@ -111,9 +108,9 @@ struct PackageInfo {
             )
         }
         #elseif swift(>=5.5)
-        self.graph = try self.workspace.loadPackageGraph(rootPath: root, diagnostics: self.diagnostics)
+        graph = try self.workspace.loadPackageGraph(rootPath: root, diagnostics: diagnostics)
         let swiftCompiler = toolchain.swiftCompiler
-        self.manifest = try tsc_await {
+        manifest = try tsc_await {
             ManifestLoader.loadRootManifest(
                 at: root,
                 swiftCompiler: swiftCompiler,
@@ -124,35 +121,34 @@ struct PackageInfo {
             )
         }
         #else
-        self.graph = self.workspace.loadPackageGraph(root: root, diagnostics: self.diagnostics)
-        self.manifest = try ManifestLoader.loadManifest (
+        graph = self.workspace.loadPackageGraph(root: root, diagnostics: diagnostics)
+        manifest = try ManifestLoader.loadManifest(
             packagePath: root,
-            swiftCompiler: self.toolchain.swiftCompiler,
+            swiftCompiler: toolchain.swiftCompiler,
             packageKind: .root
         )
         #endif
     }
 
-
     // MARK: - Validation
 
-    func validationErrors () -> [PackageValidationError] {
+    func validationErrors() -> [PackageValidationError] {
         var errors = [PackageValidationError]()
 
         // check the graph for binary targets
-        let binary = self.graph.allTargets.filter { $0.type == .binary }
+        let binary = graph.allTargets.filter { $0.type == .binary }
         if binary.isEmpty == false {
             errors.append(.containsBinaryTargets(binary.map(\.name)))
         }
 
         // check for system modules
-        let system = self.graph.allTargets.filter { $0.type == .systemModule }
+        let system = graph.allTargets.filter { $0.type == .systemModule }
         if system.isEmpty == false {
             errors.append(.containsSystemModules(system.map(\.name)))
         }
 
         // and for conditional dependencies
-        let conditionals = self.graph.allTargets.filter { $0.dependencies.contains { $0.conditions.isEmpty == false } }
+        let conditionals = graph.allTargets.filter { $0.dependencies.contains { $0.conditions.isEmpty == false } }
         if conditionals.isEmpty == false {
             errors.append(.containsConditionalDependencies(conditionals.map(\.name)))
         }
@@ -160,40 +156,37 @@ struct PackageInfo {
         return errors
     }
 
-
     // MARK: - Product/Target Names
 
-    func validProductNames (project: Xcode.Project) throws -> [String] {
-
+    func validProductNames(project: Xcode.Project) throws -> [String] {
         // find our build targets
         let productNames: [String]
-        if self.options.products.isEmpty == false {
-            productNames = self.options.products
+        if options.products.isEmpty == false {
+            productNames = options.products
         } else {
-            productNames = self.manifest.libraryProductNames
+            productNames = manifest.libraryProductNames
         }
 
         // validation
         guard productNames.isEmpty == false else {
-            throw ValidationError (
+            throw ValidationError(
                 "No products to create frameworks for were found. Add library products to Package.swift"
                     + " or specify products/targets on the command line."
             )
         }
 
-        let xcodeTargetNames = project.frameworkTargets.map { $0.name }
+        let xcodeTargetNames = project.frameworkTargets.map(\.name)
         let invalidProducts = productNames.filter { xcodeTargetNames.contains($0) == false }
         guard invalidProducts.isEmpty == true else {
-
-            let allLibraryProductNames = self.manifest.libraryProductNames
+            let allLibraryProductNames = manifest.libraryProductNames
             let nonRootPackageTargets = xcodeTargetNames.filter { allLibraryProductNames.contains($0) == false }
 
-            throw ValidationError (
+            throw ValidationError(
                 """
                 Invalid product/target name(s):
                     \(invalidProducts.joined(separator: "\n    "))
 
-                Available \(self.manifest.displayName) products:
+                Available \(manifest.displayName) products:
                     \(allLibraryProductNames.sorted().joined(separator: "\n    "))
 
                 Additional available targets:
@@ -205,14 +198,14 @@ struct PackageInfo {
         return productNames
     }
 
-    func printAllProducts (project: Xcode.Project) {
-        let allLibraryProductNames = self.manifest.libraryProductNames
-        let xcodeTargetNames = project.frameworkTargets.map { $0.name }
+    func printAllProducts(project: Xcode.Project) {
+        let allLibraryProductNames = manifest.libraryProductNames
+        let xcodeTargetNames = project.frameworkTargets.map(\.name)
         let nonRootPackageTargets = xcodeTargetNames.filter { allLibraryProductNames.contains($0) == false }
 
-        print (
+        print(
             """
-            \nAvailable \(self.manifest.displayName) products:
+            \nAvailable \(manifest.displayName) products:
                 \(allLibraryProductNames.sorted().joined(separator: "\n    "))
 
             Additional available targets:
@@ -222,51 +215,46 @@ struct PackageInfo {
         )
     }
 
-
     // MARK: - Platforms
 
     /// check if our command line platforms are supported by the package definition
-    func supportedPlatforms () throws -> [TargetPlatform] {
-
+    func supportedPlatforms() throws -> [TargetPlatform] {
         // if they have specified platforms all good, if not go everything except catalyst
-        let supported = self.options.platform.nonEmpty ?? TargetPlatform.allCases.filter { $0 != .maccatalyst }
+        let supported = options.platform.nonEmpty ?? TargetPlatform.allCases.filter { $0 != .maccatalyst }
 
         // do we have package platforms defined?
-        guard let packagePlatforms = self.manifest.platforms.nonEmpty else {
+        guard let packagePlatforms = manifest.platforms.nonEmpty else {
             return supported
         }
 
         // filter our package platforms to make sure everything is supported
         let target = packagePlatforms
             .compactMap { platform -> [TargetPlatform]? in
-                return supported.filter({ $0.platformName == platform.platformName })
+                supported.filter { $0.platformName == platform.platformName }
             }
             .flatMap { $0 }
 
         return target
     }
 
-
     // MARK: - Helpers
 
     private var absoluteRootDirectory: AbsolutePath {
-        AbsolutePath(self.rootDirectory.path)
+        AbsolutePath(rootDirectory.path)
     }
-
 }
-
 
 // MARK: - Supported Platform Types
 
 enum SupportedPlatforms {
-    case noPackagePlatforms (plan: [SupportedPlatform])
-    case packagePlatformsUnsupported (plan: [SupportedPlatform])
-    case packageValid (plan: [SupportedPlatform])
+    case noPackagePlatforms(plan: [SupportedPlatform])
+    case packagePlatformsUnsupported(plan: [SupportedPlatform])
+    case packageValid(plan: [SupportedPlatform])
 }
 
 extension SupportedPlatform: Comparable {
     public static func == (lhs: SupportedPlatform, rhs: SupportedPlatform) -> Bool {
-        return lhs.platform == rhs.platform && lhs.version == rhs.version
+        lhs.platform == rhs.platform && lhs.version == rhs.version
     }
 
     public static func < (lhs: SupportedPlatform, rhs: SupportedPlatform) -> Bool {

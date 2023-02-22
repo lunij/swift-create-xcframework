@@ -1,51 +1,46 @@
-
 import Foundation
 import TSCBasic
 import TSCUtility
 import Xcodeproj
 
 struct ProjectGenerator {
-
     private enum Constants {
         static let `extension` = "xcodeproj"
     }
-
 
     // MARK: - Properties
 
     let package: PackageInfo
 
     var projectPath: AbsolutePath {
-        let dir = AbsolutePath(self.package.projectBuildDirectory.path)
+        let dir = AbsolutePath(package.projectBuildDirectory.path)
         #if swift(>=5.7)
-        return XcodeProject.makePath(outputDir: dir, projectName: self.package.manifest.displayName)
+        return XcodeProject.makePath(outputDir: dir, projectName: package.manifest.displayName)
         #else
-        return buildXcodeprojPath(outputDir: dir, projectName: self.package.manifest.displayName)
+        return buildXcodeprojPath(outputDir: dir, projectName: package.manifest.displayName)
         #endif
     }
 
-
     // MARK: - Initialisation
 
-    init (package: PackageInfo) {
+    init(package: PackageInfo) {
         self.package = package
     }
-
 
     // MARK: - Generation
 
     /// Writes out the Xcconfig file
-    func writeDistributionXcconfig () throws {
-        guard self.package.hasDistributionBuildXcconfig else {
+    func writeDistributionXcconfig() throws {
+        guard package.hasDistributionBuildXcconfig else {
             return
         }
 
-        try makeDirectories(self.projectPath)
+        try makeDirectories(projectPath)
 
-        let path = AbsolutePath(self.package.distributionBuildXcconfig.path)
+        let path = AbsolutePath(package.distributionBuildXcconfig.path)
         try open(path) { stream in
             if let absolutePath = self.package.overridesXcconfig?.path {
-                stream (
+                stream(
                     """
                     #include "\(AbsolutePath(absolutePath).relative(to: AbsolutePath(path.dirname)).pathString)"
 
@@ -53,7 +48,7 @@ struct ProjectGenerator {
                 )
             }
 
-            stream (
+            stream(
                 """
                 BUILD_LIBRARY_FOR_DISTRIBUTION=YES
                 """
@@ -65,63 +60,60 @@ struct ProjectGenerator {
     ///
     /// This is basically a copy of Xcodeproj.generate()
     ///
-    func generate () throws -> Xcode.Project {
-        let path = self.projectPath
+    func generate() throws -> Xcode.Project {
+        let path = projectPath
         try makeDirectories(path)
 
         // Generate the contents of project.xcodeproj (inside the .xcodeproj).
-#if swift(>=5.6)
-        let project = try pbxproj (
+        #if swift(>=5.6)
+        let project = try pbxproj(
             xcodeprojPath: path,
-            graph: self.package.graph,
+            graph: package.graph,
             extraDirs: [],
             extraFiles: [],
-            options: XcodeprojOptions (
-                xcconfigOverrides: (self.package.overridesXcconfig?.path).flatMap { AbsolutePath($0) },
+            options: XcodeprojOptions(
+                xcconfigOverrides: (package.overridesXcconfig?.path).flatMap { AbsolutePath($0) },
                 useLegacySchemeGenerator: true
             ),
             fileSystem: localFileSystem,
-            observabilityScope: self.package.observabilitySystem.topScope
+            observabilityScope: package.observabilitySystem.topScope
         )
-#else
-        let project = try pbxproj (
+        #else
+        let project = try pbxproj(
             xcodeprojPath: path,
-            graph: self.package.graph,
+            graph: package.graph,
             extraDirs: [],
             extraFiles: [],
-            options: XcodeprojOptions (
-                xcconfigOverrides: (self.package.overridesXcconfig?.path).flatMap { AbsolutePath($0) },
+            options: XcodeprojOptions(
+                xcconfigOverrides: (package.overridesXcconfig?.path).flatMap { AbsolutePath($0) },
                 useLegacySchemeGenerator: true
             ),
-            diagnostics: self.package.diagnostics
+            diagnostics: package.diagnostics
         )
-#endif
+        #endif
 
         return project
     }
-
 }
-
 
 // MARK: - Saving Xcode Projects
 
 extension Xcode.Project {
-
     /// This is the group that is normally created in Xcodeproj.xcodeProject() when you specify an xcconfigOverride
     var configGroup: Xcode.Group {
         let name = "Configs"
 
-        if let group = self.mainGroup.subitems.lazy.compactMap({ $0 as? Xcode.Group }).first(where: { $0.name == name }) {
+        if let group = mainGroup.subitems.lazy.compactMap({ $0 as? Xcode.Group }).first(where: { $0.name == name }) {
             return group
         }
 
         // doesn't exist - lets creat it
-        return self.mainGroup.addGroup(path: "", name: name)
+        return mainGroup.addGroup(path: "", name: name)
     }
 
-    func enableDistribution (targets: [String], xcconfig: RelativePath) throws {
-        let group = self.configGroup
-        let ref = group.addFileReference (
+    func enableDistribution(targets: [String], xcconfig: RelativePath) throws {
+        let group = configGroup
+        let ref = group.addFileReference(
             path: xcconfig.pathString,
             name: xcconfig.basename
         )
@@ -131,19 +123,19 @@ extension Xcode.Project {
         }
     }
 
-    func save (to path: AbsolutePath) throws {
+    func save(to path: AbsolutePath) throws {
         try open(path.appending(component: "project.pbxproj")) { stream in
             // Serialize the project model we created to a plist, and return
             // its string description.
-#if swift(>=5.6)
+            #if swift(>=5.6)
             let str = try "// !$*UTF8*$!\n" + self.generatePlist().description
-#else
+            #else
             let str = "// !$*UTF8*$!\n" + self.generatePlist().description
-#endif
+            #endif
             stream(str)
         }
 
-        for target in self.frameworkTargets {
+        for target in frameworkTargets {
             ///// For framework targets, generate target.c99Name_Info.plist files in the
             ///// directory that Xcode project is generated
             let name = "\(target.name.spm_mangledToC99ExtendedIdentifier())_Info.plist"

@@ -1,4 +1,3 @@
-
 import PackageModel
 
 extension ProductType {
@@ -12,7 +11,7 @@ extension ProductType {
 
 extension Manifest {
     var libraryProductNames: [String] {
-        return self.products
+        products
             .compactMap { product in
                 guard product.type.isLibrary else { return nil }
                 return product.name

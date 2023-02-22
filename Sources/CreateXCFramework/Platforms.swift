@@ -1,4 +1,3 @@
-
 import ArgumentParser
 import PackageModel
 
@@ -13,14 +12,13 @@ enum TargetPlatform: String, ExpressibleByArgument, CaseIterable {
         self.init(rawValue: argument.lowercased())
     }
 
-
     var platformName: String {
         switch self {
-        case .ios:          return "ios"
-        case .macos:        return "macos"
-        case .maccatalyst:  return "macos"
-        case .tvos:         return "tvos"
-        case .watchos:      return "watchos"
+        case .ios: return "ios"
+        case .macos: return "macos"
+        case .maccatalyst: return "macos"
+        case .tvos: return "tvos"
+        case .watchos: return "watchos"
         }
     }
 
@@ -37,13 +35,13 @@ enum TargetPlatform: String, ExpressibleByArgument, CaseIterable {
         switch self {
         case .ios:
             return [
-                SDK (
+                SDK(
                     destination: "generic/platform=iOS",
                     archiveName: "iphoneos.xcarchive",
                     releaseFolder: "Release-iphoneos",
                     buildSettings: nil
                 ),
-                SDK (
+                SDK(
                     destination: "generic/platform=iOS Simulator",
                     archiveName: "iphonesimulator.xcarchive",
                     releaseFolder: "Release-iphonesimulator",
@@ -53,7 +51,7 @@ enum TargetPlatform: String, ExpressibleByArgument, CaseIterable {
 
         case .macos:
             return [
-                SDK (
+                SDK(
                     destination: "generic/platform=macOS,name=Any Mac",
                     archiveName: "macos.xcarchive",
                     releaseFolder: "Release",
@@ -63,23 +61,23 @@ enum TargetPlatform: String, ExpressibleByArgument, CaseIterable {
 
         case .maccatalyst:
             return [
-                SDK (
+                SDK(
                     destination: "generic/platform=macOS,variant=Mac Catalyst",
                     archiveName: "maccatalyst.xcarchive",
                     releaseFolder: "Release-maccatalyst",
-                    buildSettings: [ "SUPPORTS_MACCATALYST": "YES" ]
+                    buildSettings: ["SUPPORTS_MACCATALYST": "YES"]
                 )
             ]
 
         case .tvos:
             return [
-                SDK (
+                SDK(
                     destination: "generic/platform=tvOS",
                     archiveName: "appletvos.xcarchive",
                     releaseFolder: "Release-appletvos",
                     buildSettings: nil
                 ),
-                SDK (
+                SDK(
                     destination: "generic/platform=tvOS Simulator",
                     archiveName: "appletvsimulator.xcarchive",
                     releaseFolder: "Release-appletvsimulator",
@@ -89,13 +87,13 @@ enum TargetPlatform: String, ExpressibleByArgument, CaseIterable {
 
         case .watchos:
             return [
-                SDK (
+                SDK(
                     destination: "generic/platform=watchOS",
                     archiveName: "watchos.xcarchive",
                     releaseFolder: "Release-watchos",
                     buildSettings: nil
                 ),
-                SDK (
+                SDK(
                     destination: "generic/platform=watchOS Simulator",
                     archiveName: "watchsimulator.xcarchive",
                     releaseFolder: "Release-watchsimulator",

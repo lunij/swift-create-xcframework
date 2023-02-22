@@ -1,4 +1,3 @@
-
 import Build
 import Foundation
 import PackageModel
@@ -7,7 +6,6 @@ import TSCUtility
 import Xcodeproj
 
 struct XcodeBuilder {
-
     // MARK: - Properties
 
     let path: AbsolutePath
@@ -16,30 +14,29 @@ struct XcodeBuilder {
     let options: Command.Options
 
     var buildDirectory: Foundation.URL {
-        self.package.projectBuildDirectory
+        package.projectBuildDirectory
             .appendingPathComponent("build")
             .absoluteURL
     }
 
     // MARK: - Initialisation
 
-    init (project: Xcode.Project, projectPath: AbsolutePath, package: PackageInfo, options: Command.Options) {
+    init(project: Xcode.Project, projectPath: AbsolutePath, package: PackageInfo, options: Command.Options) {
         self.project = project
-        self.path = projectPath
+        path = projectPath
         self.package = package
         self.options = options
     }
 
-
     // MARK: - Clean
 
-    func clean () throws {
-        let process = TSCBasic.Process (
+    func clean() throws {
+        let process = TSCBasic.Process(
             arguments: [
                 "xcrun",
                 "xcodebuild",
-                "-project", self.path.pathString,
-                "BUILD_DIR=\(self.buildDirectory.path)",
+                "-project", path.pathString,
+                "BUILD_DIR=\(buildDirectory.path)",
                 "clean"
             ],
             outputRedirection: .none
@@ -58,7 +55,6 @@ struct XcodeBuilder {
         }
     }
 
-
     // MARK: - Build
 
     struct BuildResult {
@@ -67,10 +63,10 @@ struct XcodeBuilder {
         let debugSymbolsPath: Foundation.URL
     }
 
-    func build (targets: [String], sdk: TargetPlatform.SDK) throws -> [String: BuildResult] {
+    func build(targets: [String], sdk: TargetPlatform.SDK) throws -> [String: BuildResult] {
         for target in targets {
-            let process = TSCBasic.Process (
-                arguments: try self.buildCommand(target: target, sdk: sdk),
+            let process = TSCBasic.Process(
+                arguments: try buildCommand(target: target, sdk: sdk),
                 outputRedirection: .none
             )
 
@@ -89,7 +85,7 @@ struct XcodeBuilder {
 
         return targets
             .reduce(into: [String: BuildResult]()) { dict, name in
-                dict[name] = BuildResult (
+                dict[name] = BuildResult(
                     target: name,
                     frameworkPath: self.frameworkPath(target: name, sdk: sdk),
                     debugSymbolsPath: self.debugSymbolsPath(target: name, sdk: sdk)
@@ -97,15 +93,15 @@ struct XcodeBuilder {
             }
     }
 
-    private func buildCommand (target: String, sdk: TargetPlatform.SDK) throws -> [String] {
+    private func buildCommand(target: String, sdk: TargetPlatform.SDK) throws -> [String] {
         var command: [String] = [
             "xcrun",
             "xcodebuild",
-            "-project", self.path.pathString,
-            "-configuration", self.options.configuration.xcodeConfigurationName,
-            "-archivePath", self.buildDirectory.appendingPathComponent(self.productName(target: target)).appendingPathComponent(sdk.archiveName).path,
+            "-project", path.pathString,
+            "-configuration", options.configuration.xcodeConfigurationName,
+            "-archivePath", buildDirectory.appendingPathComponent(productName(target: target)).appendingPathComponent(sdk.archiveName).path,
             "-destination", sdk.destination,
-            "BUILD_DIR=\(self.buildDirectory.path)",
+            "BUILD_DIR=\(buildDirectory.path)",
             "SKIP_INSTALL=NO"
         ]
 
@@ -117,56 +113,55 @@ struct XcodeBuilder {
         }
 
         // enable evolution for the whole stack
-        if self.options.stackEvolution {
+        if options.stackEvolution {
             command.append("BUILD_LIBRARY_FOR_DISTRIBUTION=YES")
         }
 
         // add build settings provided in the invocation
-        self.options.xcSetting.forEach { setting in
+        options.xcSetting.forEach { setting in
             command.append("\(setting.name)=\(setting.value)")
         }
 
         // add our targets
-        command += [ "-scheme", target ]
+        command += ["-scheme", target]
 
         // and the command
-        command += [ "archive" ]
+        command += ["archive"]
 
         return command
     }
 
     // we should probably pull this from the build output but we just make assumptions here
-    private func frameworkPath (target: String, sdk: TargetPlatform.SDK) -> Foundation.URL {
-        return self.buildDirectory
-            .appendingPathComponent(self.productName(target: target))
+    private func frameworkPath(target: String, sdk: TargetPlatform.SDK) -> Foundation.URL {
+        buildDirectory
+            .appendingPathComponent(productName(target: target))
             .appendingPathComponent(sdk.archiveName)
             .appendingPathComponent("Products/Library/Frameworks")
-            .appendingPathComponent("\(self.productName(target: target)).framework")
+            .appendingPathComponent("\(productName(target: target)).framework")
             .absoluteURL
     }
 
     // MARK: - Debug Symbols
 
-    private func debugSymbolsPath (target: String, sdk: TargetPlatform.SDK) -> Foundation.URL {
-        return self.buildDirectory
+    private func debugSymbolsPath(target _: String, sdk: TargetPlatform.SDK) -> Foundation.URL {
+        buildDirectory
             .appendingPathComponent(sdk.releaseFolder)
     }
 
-    private func dSYMPath (target: String, path: Foundation.URL) -> Foundation.URL {
-        return path
-            .appendingPathComponent("\(self.productName(target: target)).framework.dSYM")
+    private func dSYMPath(target: String, path: Foundation.URL) -> Foundation.URL {
+        path
+            .appendingPathComponent("\(productName(target: target)).framework.dSYM")
     }
 
-    private func dwarfPath (target: String, path: Foundation.URL) -> Foundation.URL {
-        return path
+    private func dwarfPath(target: String, path: Foundation.URL) -> Foundation.URL {
+        path
             .appendingPathComponent("Contents/Resources/DWARF")
-            .appendingPathComponent(self.productName(target: target))
+            .appendingPathComponent(productName(target: target))
     }
 
-    private func debugSymbolFiles (target: String, path: Foundation.URL) throws -> [Foundation.URL] {
-
+    private func debugSymbolFiles(target: String, path: Foundation.URL) throws -> [Foundation.URL] {
         // if there is no dSYM directory there is no point continuing
-        let dsym = self.dSYMPath(target: target, path: path)
+        let dsym = dSYMPath(target: target, path: path)
         guard FileManager.default.fileExists(atPath: dsym.absoluteURL.path) else {
             return []
         }
@@ -176,13 +171,13 @@ struct XcodeBuilder {
         ]
 
         // if we have a dwarf file we can inspect that to get the slice UUIDs
-        let dwarf = self.dwarfPath(target: target, path: dsym)
+        let dwarf = dwarfPath(target: target, path: dsym)
         guard FileManager.default.fileExists(atPath: dwarf.absoluteURL.path) else {
             return files
         }
 
         // get the UUID of the slices in the DWARF
-        let identifiers = try self.binarySliceIdentifiers(file: dwarf)
+        let identifiers = try binarySliceIdentifiers(file: dwarf)
 
         // They should be bcsymbolmap files in the debug dir
         for identifier in identifiers {
@@ -193,7 +188,7 @@ struct XcodeBuilder {
         return files
     }
 
-    private func binarySliceIdentifiers (file: Foundation.URL) throws -> [UUID] {
+    private func binarySliceIdentifiers(file: Foundation.URL) throws -> [UUID] {
         let command = [
             "xcrun",
             "dwarfdump",
@@ -201,7 +196,7 @@ struct XcodeBuilder {
             file.absoluteURL.path
         ]
 
-        let process = TSCBasic.Process (
+        let process = TSCBasic.Process(
             arguments: command,
             outputRedirection: .collect
         )
@@ -231,17 +226,16 @@ struct XcodeBuilder {
         }
     }
 
-
     // MARK: - Merging
 
-    func merge (target: String, buildResults: [BuildResult]) throws -> Foundation.URL {
-        let outputPath = self.xcframeworkPath(target: target)
+    func merge(target: String, buildResults: [BuildResult]) throws -> Foundation.URL {
+        let outputPath = xcframeworkPath(target: target)
 
         // try to remove it if its already there, otherwise we're going to get errors
         try? FileManager.default.removeItem(at: outputPath)
 
-        let process = TSCBasic.Process (
-            arguments: try self.mergeCommand(outputPath: outputPath, buildResults: buildResults),
+        let process = TSCBasic.Process(
+            arguments: try mergeCommand(outputPath: outputPath, buildResults: buildResults),
             outputRedirection: .none
         )
 
@@ -260,7 +254,7 @@ struct XcodeBuilder {
         return outputPath
     }
 
-    private func mergeCommand (outputPath: Foundation.URL, buildResults: [BuildResult]) throws -> [String] {
+    private func mergeCommand(outputPath: Foundation.URL, buildResults: [BuildResult]) throws -> [String] {
         var command: [String] = [
             "xcrun",
             "xcodebuild",
@@ -269,41 +263,38 @@ struct XcodeBuilder {
 
         // add our frameworks and any debugging symbols
         command += try buildResults.flatMap { result -> [String] in
-            var args = [ "-framework", result.frameworkPath.absoluteURL.path ]
+            var args = ["-framework", result.frameworkPath.absoluteURL.path]
 
             if self.package.options.debugSymbols {
                 let symbolFiles = try self.debugSymbolFiles(target: result.target, path: result.debugSymbolsPath)
                 for file in symbolFiles {
                     if FileManager.default.fileExists(atPath: file.absoluteURL.path) {
-                        args += [ "-debug-symbols", file.absoluteURL.path ]
+                        args += ["-debug-symbols", file.absoluteURL.path]
                     }
                 }
-
             }
 
             return args
         }
 
         // and the output
-        command += [ "-output", outputPath.path ]
+        command += ["-output", outputPath.path]
 
         return command
     }
 
-    private func xcframeworkPath (target: String) -> Foundation.URL {
-        return URL(fileURLWithPath: self.options.output)
-            .appendingPathComponent("\(self.productName(target: target)).xcframework")
+    private func xcframeworkPath(target: String) -> Foundation.URL {
+        URL(fileURLWithPath: options.output)
+            .appendingPathComponent("\(productName(target: target)).xcframework")
     }
 
-    private func productName (target: String) -> String {
+    private func productName(target: String) -> String {
         // Xcode replaces any non-alphanumeric characters in the target with an underscore
         // https://developer.apple.com/documentation/swift/imported_c_and_objective-c_apis/importing_swift_into_objective-c
-        return target
+        target
             .replacingOccurrences(of: "[^0-9a-zA-Z]", with: "_", options: .regularExpression)
             .replacingOccurrences(of: "^[0-9]", with: "_", options: .regularExpression)
-
     }
-
 
     // MARK: - Errors
 
@@ -325,14 +316,13 @@ struct XcodeBuilder {
     }
 }
 
-
 // MARK: - Helper Extensions
 
 extension BuildConfiguration {
     var xcodeConfigurationName: String {
         switch self {
-        case .debug:        return "Debug"
-        case .release:      return "Release"
+        case .debug: return "Debug"
+        case .release: return "Release"
         }
     }
 }
@@ -340,7 +330,7 @@ extension BuildConfiguration {
 private extension String {
     func sliceIdentifiers() throws -> [UUID] {
         let regex = try NSRegularExpression(pattern: #"^UUID: ([a-zA-Z0-9\-]+)"#, options: .anchorsMatchLines)
-        let matches = regex.matches(in: self, options: [], range: NSRange(location: 0, length: self.count))
+        let matches = regex.matches(in: self, options: [], range: NSRange(location: 0, length: count))
 
         guard matches.isEmpty == false else {
             return []

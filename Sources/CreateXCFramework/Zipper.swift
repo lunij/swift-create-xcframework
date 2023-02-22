@@ -1,4 +1,3 @@
-
 #if canImport(Basics)
 import Basics
 #endif
@@ -11,26 +10,23 @@ import TSCBasic
 import Workspace
 
 struct Zipper {
-
     // MARK: - Properties
 
     let package: PackageInfo
 
-    init (package: PackageInfo) {
+    init(package: PackageInfo) {
         self.package = package
     }
 
-
     // MARK: - Zippering
 
-    func zip (target: String, version: String?, file: Foundation.URL) throws -> Foundation.URL {
-
-        let suffix = self.versionSuffix(target: target, default: version) ?? ""
+    func zip(target: String, version: String?, file: Foundation.URL) throws -> Foundation.URL {
+        let suffix = versionSuffix(target: target, default: version) ?? ""
         let zipPath = file.path.replacingOccurrences(of: "\\.xcframework$", with: "\(suffix).zip", options: .regularExpression)
         let zipURL = URL(fileURLWithPath: zipPath)
 
-        let process = TSCBasic.Process (
-            arguments: self.zipCommand(source: file, target: zipURL),
+        let process = TSCBasic.Process(
+            arguments: zipCommand(source: file, target: zipURL),
             outputRedirection: .none
         )
 
@@ -50,21 +46,21 @@ struct Zipper {
         return zipURL
     }
 
-    func checksum (file: Foundation.URL) throws -> Foundation.URL {
-#if swift(>=5.7)
+    func checksum(file: Foundation.URL) throws -> Foundation.URL {
+        #if swift(>=5.7)
         let sum = try checksum(forBinaryArtifactAt: AbsolutePath(file.path))
-#elseif swift(>=5.6)
-        let sum = try self.package.workspace.checksum(forBinaryArtifactAt: AbsolutePath(file.path))
-#else
-        let sum = self.package.workspace.checksum(forBinaryArtifactAt: AbsolutePath(file.path), diagnostics: self.package.diagnostics)
-#endif
+        #elseif swift(>=5.6)
+        let sum = try package.workspace.checksum(forBinaryArtifactAt: AbsolutePath(file.path))
+        #else
+        let sum = package.workspace.checksum(forBinaryArtifactAt: AbsolutePath(file.path), diagnostics: package.diagnostics)
+        #endif
         let checksumFile = file.deletingPathExtension().appendingPathExtension("sha256")
         try Data(sum.utf8).write(to: checksumFile)
         return checksumFile
     }
 
-    private func zipCommand (source: Foundation.URL, target: Foundation.URL) -> [String] {
-        return [
+    private func zipCommand(source: Foundation.URL, target: Foundation.URL) -> [String] {
+        [
             "ditto",
             "-c",
             "-k",
@@ -74,35 +70,33 @@ struct Zipper {
         ]
     }
 
-    private func versionSuffix (target: String, default fallback: String?) -> String? {
-
+    private func versionSuffix(target: String, default fallback: String?) -> String? {
         // find the package that contains our target
-        guard let packageRef = self.package.graph.packages.first(where: { $0.targets.contains(where: { $0.name == target }) }) else { return nil }
+        guard let packageRef = package.graph.packages.first(where: { $0.targets.contains(where: { $0.name == target }) }) else { return nil }
 
-#if swift(>=5.6)
+        #if swift(>=5.6)
         guard
-            let dependency = self.package.workspace.state.dependencies[packageRef.identity],
+            let dependency = package.workspace.state.dependencies[packageRef.identity],
             case let .custom(version, _) = dependency.state
         else {
             return fallback.flatMap { "-" + $0 }
         }
-#else
+        #else
         guard
-            let dependency = self.package.workspace.state.dependencies[forNameOrIdentity: packageRef.packageName],
+            let dependency = package.workspace.state.dependencies[forNameOrIdentity: packageRef.packageName],
             case let .checkout(checkout) = dependency.state,
             let version = checkout.version
         else {
             return fallback.flatMap { "-" + $0 }
         }
-#endif
+        #endif
 
         return "-" + version.description
     }
 
-
     // MARK: - Cleaning
 
-    func clean (file: Foundation.URL) throws {
+    func clean(file: Foundation.URL) throws {
         try FileManager.default.removeItem(at: file)
     }
 
@@ -134,13 +128,13 @@ struct Zipper {
 #elseif swift(>=5.5)
 private extension ResolvedPackage {
     var packageName: String {
-        self.manifestName
+        manifestName
     }
 }
 #else
 private extension ResolvedPackage {
     var packageName: String {
-        self.name
+        name
     }
 }
 #endif

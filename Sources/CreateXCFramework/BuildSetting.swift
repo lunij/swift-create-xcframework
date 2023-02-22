@@ -1,4 +1,3 @@
-
 import ArgumentParser
 
 /// A representation of a build setting in an Xcode project, e.g.
@@ -12,7 +11,7 @@ struct BuildSetting: ExpressibleByArgument {
     init?(argument: String) {
         let components = argument.components(separatedBy: "=")
         guard components.count == 2 else { return nil }
-        self.name = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
-        self.value = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        name = components[0].trimmingCharacters(in: .whitespacesAndNewlines)
+        value = components[1].trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
