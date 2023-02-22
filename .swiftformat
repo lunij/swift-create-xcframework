@@ -1,0 +1,8 @@
+--commas inline
+--enable blockComments
+--exclude .derivedData, DerivedData
+--ifdef no-indent
+--indent 4
+--importgrouping testable-bottom
+--wrapcollections before-first
+--wrapparameters before-first
