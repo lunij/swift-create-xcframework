@@ -1,9 +1,3 @@
-//
-//  Xcodeproj+ProductValidation.swift
-//  swift-create-xcframeworks
-//
-//  Created by Rob Amos on 8/5/20.
-//
 
 import Foundation
 import Xcodeproj

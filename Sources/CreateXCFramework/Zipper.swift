@@ -1,9 +1,3 @@
-//
-//  Zipper.swift
-//  swift-create-xcframework
-//
-//  Created by Rob Amos on 13/5/20.
-//
 
 #if canImport(Basics)
 import Basics

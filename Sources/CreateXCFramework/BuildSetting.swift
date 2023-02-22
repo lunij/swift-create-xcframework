@@ -1,9 +1,3 @@
-//
-//  BuildSetting.swift
-//  swift-create-xcframework
-//
-//  Created by Dalton Claybrook on 4/17/21.
-//
 
 import ArgumentParser
 

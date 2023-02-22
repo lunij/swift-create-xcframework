@@ -1,9 +1,3 @@
-//
-//  Constants.swift
-//  swift-create-xcframework
-//
-//  Created by Rob Amos on 9/5/20.
-//
 
 import ArgumentParser
 import PackageModel
