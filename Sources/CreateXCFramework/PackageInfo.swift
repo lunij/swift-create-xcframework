@@ -53,7 +53,6 @@ struct PackageInfo {
         return rootDirectory.appendingPathComponent(path)
     }
 
-    // TODO: Map diagnostics to swift-log
     #if swift(>=5.6)
     let observabilitySystem = ObservabilitySystem { _, diagnostics in
         print("\(diagnostics.severity): \(diagnostics.message)")

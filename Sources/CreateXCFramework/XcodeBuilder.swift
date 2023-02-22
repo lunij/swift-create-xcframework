@@ -267,10 +267,8 @@ struct XcodeBuilder {
 
             if self.package.options.debugSymbols {
                 let symbolFiles = try self.debugSymbolFiles(target: result.target, path: result.debugSymbolsPath)
-                for file in symbolFiles {
-                    if FileManager.default.fileExists(atPath: file.absoluteURL.path) {
-                        args += ["-debug-symbols", file.absoluteURL.path]
-                    }
+                for file in symbolFiles where FileManager.default.fileExists(atPath: file.absoluteURL.path) {
+                    args += ["-debug-symbols", file.absoluteURL.path]
                 }
             }
 

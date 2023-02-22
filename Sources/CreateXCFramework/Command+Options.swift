@@ -28,10 +28,16 @@ extension Command {
         @Option(help: "The path to a .xcconfig file that can be used to override Xcode build settings. Relative to the package path.")
         var xcconfig: String?
 
-        @Flag(help: "Enables Library Evolution for the whole build stack. Normally we apply it only to the targets listed to be built to work around issues with projects that don't support it.")
+        @Flag(help: ArgumentHelp(
+            "Enables Library Evolution for the whole build stack."
+                + " Normally we apply it only to the targets listed to be built to work around issues with projects that don't support it."
+        ))
         var stackEvolution = false
 
-        @Option(help: ArgumentHelp("Arbitrary Xcode build settings that are passed directly to the `xcodebuild` invocation. Can be specified multiple times.", valueName: "NAME=VALUE"))
+        @Option(help: ArgumentHelp(
+            "Arbitrary Xcode build settings that are passed directly to the `xcodebuild` invocation. Can be specified multiple times.",
+            valueName: "NAME=VALUE"
+        ))
         var xcSetting: [BuildSetting] = []
 
         // MARK: - Output Options
