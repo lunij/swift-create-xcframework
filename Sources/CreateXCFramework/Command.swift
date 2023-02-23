@@ -7,8 +7,6 @@ import Workspace
 import Xcodeproj
 
 struct Command: ParsableCommand {
-    // MARK: - Configuration
-
     static var configuration = CommandConfiguration(
         abstract: "Creates an XCFramework out of a Swift Package using xcodebuild",
         discussion:
@@ -22,47 +20,47 @@ struct Command: ParsableCommand {
         version: "2.3.0"
     )
 
-    // MARK: - Arguments
-
     @OptionGroup()
     var options: Options
 
-    // MARK: - Execution
-
-    // swiftlint:disable:next function_body_length
     func run() throws {
-        // load all/validate of the package info
         let package = try PackageInfo(options: options)
+        try package.validate()
 
-        // validate that package to make sure we can generate it
-        let validation = package.validationErrors()
-        if validation.isEmpty == false {
-            for error in validation {
-                print(error.isFatal ? "Error:" : "Warning:", error.errorDescription!)
+        let xcframeworkFiles = try createXCFrameworks(from: package)
+
+        if options.zip {
+            let zipper = Zipper(package: package)
+            let zipped = try xcframeworkFiles.flatMap { pair -> [URL] in
+                let zip = try zipper.zip(target: pair.0, version: self.options.zipVersion, file: pair.1)
+                let checksum = try zipper.checksum(file: zip)
+                try zipper.clean(file: pair.1)
+                return [zip, checksum]
             }
-            if validation.contains(where: \.isFatal) {
-                Darwin.exit(1)
+
+            if options.githubAction {
+                let zips = zipped.map(\.path).joined(separator: "\n")
+                let data = Data(zips.utf8)
+                let url = URL(fileURLWithPath: options.buildPath).appendingPathComponent("xcframework-zipfile.url")
+                try data.write(to: url)
             }
         }
+    }
 
-        // generate the Xcode project file
-        let generator = ProjectGenerator(package: package)
-
+    private func createXCFrameworks(from package: PackageInfo) throws -> [(String, URL)] {
         let platforms = try package.supportedPlatforms()
+        let sdks = platforms.flatMap(\.sdks)
 
-        // get what we're building
+        let generator = ProjectGenerator(package: package)
         try generator.writeDistributionXcconfig()
         let project = try generator.generate()
 
-        // printing packages?
         if options.listProducts {
             package.printAllProducts(project: project)
             Darwin.exit(0)
         }
 
-        // get valid packages and their SDKs
         let productNames = try package.validProductNames(project: project)
-        let sdks = platforms.flatMap(\.sdks)
 
         // we've applied the xcconfig to everything, but some dependencies (*cough* swift-nio)
         // have build errors, so we remove it from targets we're not building
@@ -73,62 +71,45 @@ struct Command: ParsableCommand {
             )
         }
 
-        // save the project
         try project.save(to: generator.projectPath)
 
-        // start building
         let builder = XcodeBuilder(project: project, projectPath: generator.projectPath, package: package, options: options)
 
-        // clean first
         if options.clean {
             try builder.clean()
         }
 
-        // all of our targets for each platform, then group the resulting .frameworks by target
         var frameworkFiles: [String: [XcodeBuilder.BuildResult]] = [:]
 
         for sdk in sdks {
-            try builder.build(targets: productNames, sdk: sdk)
-                .forEach { pair in
-                    if frameworkFiles[pair.key] == nil {
-                        frameworkFiles[pair.key] = []
-                    }
-                    frameworkFiles[pair.key]?.append(pair.value)
+            try builder.build(targets: productNames, sdk: sdk).forEach { key, buildResult in
+                if frameworkFiles[key] == nil {
+                    frameworkFiles[key] = []
                 }
-        }
-
-        var xcframeworkFiles: [(String, Foundation.URL)] = []
-
-        // then we merge the resulting frameworks
-        try frameworkFiles
-            .forEach { pair in
-                xcframeworkFiles.append((pair.key, try builder.merge(target: pair.key, buildResults: pair.value)))
-            }
-
-        // zip it up if thats what they want
-        if options.zip {
-            let zipper = Zipper(package: package)
-            let zipped = try xcframeworkFiles
-                .flatMap { pair -> [Foundation.URL] in
-                    let zip = try zipper.zip(target: pair.0, version: self.options.zipVersion, file: pair.1)
-                    let checksum = try zipper.checksum(file: zip)
-                    try zipper.clean(file: pair.1)
-
-                    return [zip, checksum]
-                }
-
-            // notify the action if we have one
-            if options.githubAction {
-                let zips = zipped.map(\.path).joined(separator: "\n")
-                let data = Data(zips.utf8)
-                let url = Foundation.URL(fileURLWithPath: options.buildPath).appendingPathComponent("xcframework-zipfile.url")
-                try data.write(to: url)
+                frameworkFiles[key]?.append(buildResult)
             }
         }
+
+        var xcframeworkFiles: [(String, URL)] = []
+
+        try frameworkFiles.forEach { key, buildResults in
+            xcframeworkFiles.append((key, try builder.merge(target: key, buildResults: buildResults)))
+        }
+
+        return xcframeworkFiles
     }
 }
 
-// MARK: - Errors
+private extension PackageInfo {
+    func validate() throws {
+        for error in validationErrors() {
+            if error.isFatal {
+                throw error
+            }
+            print(error)
+        }
+    }
+}
 
 private enum Error: Swift.Error, LocalizedError {
     case noProducts
