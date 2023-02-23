@@ -25,7 +25,14 @@ let package = Package(
             ],
             plugins: .default
         ),
-        .testTarget(name: "CreateXCFrameworkTests", dependencies: ["CreateXCFramework"])
+        .testTarget(
+            name: "CreateXCFrameworkTests",
+            dependencies: ["CreateXCFramework"],
+            resources: [
+                .copy("Fixtures")
+            ],
+            plugins: .default
+        )
     ],
     swiftLanguageVersions: [
         .v5
