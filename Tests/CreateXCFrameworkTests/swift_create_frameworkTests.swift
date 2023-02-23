@@ -40,8 +40,4 @@ final class swift_create_frameworkTests: XCTestCase {
         return Bundle.main.bundleURL
       #endif
     }
-
-    static var allTests = [
-        ("testExample", testExample),
-    ]
 }
