@@ -1,28 +1,23 @@
 import ArgumentParser
-#if swift(>=5.6)
-import Basics
-#endif
 import Build
 import Foundation
-#if swift(>=5.6)
-import PackageGraph
-#endif
 import PackageLoading
 import PackageModel
 import SPMBuildCore
-#if swift(>=5.6)
-import TSCBasic
-#endif
 import Workspace
 import Xcodeproj
 
+#if swift(>=5.6)
+import Basics
+import PackageGraph
+import TSCBasic
+#endif
+
 struct PackageInfo {
-    // MARK: - Properties
+    let rootDirectory: URL
+    let buildDirectory: URL
 
-    let rootDirectory: Foundation.URL
-    let buildDirectory: Foundation.URL
-
-    var projectBuildDirectory: Foundation.URL {
+    var projectBuildDirectory: URL {
         buildDirectory
             .appendingPathComponent("swift-create-xcframework")
             .absoluteURL
@@ -32,20 +27,17 @@ struct PackageInfo {
         overridesXcconfig != nil || options.stackEvolution == false
     }
 
-    var distributionBuildXcconfig: Foundation.URL {
+    var distributionBuildXcconfig: URL {
         projectBuildDirectory
             .appendingPathComponent("Distribution.xcconfig")
             .absoluteURL
     }
 
-    var overridesXcconfig: Foundation.URL? {
+    var overridesXcconfig: URL? {
         guard let path = options.xcconfig else { return nil }
 
-        // absolute path
         if path.hasPrefix("/") {
-            return Foundation.URL(fileURLWithPath: path)
-
-            // strip current directory if thats where we are
+            return URL(fileURLWithPath: path)
         } else if path.hasPrefix("./") {
             return rootDirectory.appendingPathComponent(String(path[path.index(path.startIndex, offsetBy: 2)...]))
         }
@@ -67,69 +59,18 @@ struct PackageInfo {
     let toolchain: UserToolchain
     let workspace: Workspace
 
-    // MARK: - Initialisation
-
-    init(options: Command.Options) throws { // swiftlint:disable:this function_body_length
+    init(options: Command.Options) throws {
         self.options = options
-        rootDirectory = Foundation.URL(fileURLWithPath: options.packagePath, isDirectory: true).absoluteURL
+        rootDirectory = URL(fileURLWithPath: options.packagePath, isDirectory: true).absoluteURL
         buildDirectory = rootDirectory.appendingPathComponent(options.buildPath, isDirectory: true).absoluteURL
 
         let root = AbsolutePath(rootDirectory.path)
 
         toolchain = try UserToolchain(destination: try .hostDestination())
-
-        #if swift(>=5.7)
-        let loader = ManifestLoader(toolchain: toolchain)
-        self.workspace = try Workspace(forRootPackage: root, customManifestLoader: loader)
-        #elseif swift(>=5.6)
-        let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
-        let loader = ManifestLoader(toolchain: resources)
-        self.workspace = try Workspace(forRootPackage: root, customManifestLoader: loader)
-        #else
-        #if swift(>=5.5)
-        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler, swiftCompilerFlags: [])
-        #else
-        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler)
-        #endif
-        let loader = ManifestLoader(manifestResources: resources)
-        self.workspace = Workspace.create(forRootPackage: root, manifestLoader: loader)
-        #endif
-
-        #if swift(>=5.6)
-        graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
-        let workspace = workspace
-        let scope = observabilitySystem.topScope
-        manifest = try tsc_await {
-            workspace.loadRootManifest(
-                at: root,
-                observabilityScope: scope,
-                completion: $0
-            )
-        }
-        #elseif swift(>=5.5)
-        graph = try self.workspace.loadPackageGraph(rootPath: root, diagnostics: diagnostics)
-        let swiftCompiler = toolchain.swiftCompiler
-        manifest = try tsc_await {
-            ManifestLoader.loadRootManifest(
-                at: root,
-                swiftCompiler: swiftCompiler,
-                swiftCompilerFlags: [],
-                identityResolver: DefaultIdentityResolver(),
-                on: DispatchQueue.global(qos: .background),
-                completion: $0
-            )
-        }
-        #else
-        graph = self.workspace.loadPackageGraph(root: root, diagnostics: diagnostics)
-        manifest = try ManifestLoader.loadManifest(
-            packagePath: root,
-            swiftCompiler: toolchain.swiftCompiler,
-            packageKind: .root
-        )
-        #endif
+        workspace = try Workspace(root: root, toolchain: toolchain)
+        graph = try PackageGraph(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
+        manifest = try .createManifest(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
     }
-
-    // MARK: - Validation
 
     func validationErrors() -> [PackageValidationError] {
         var errors = [PackageValidationError]()
@@ -154,8 +95,6 @@ struct PackageInfo {
 
         return errors
     }
-
-    // MARK: - Product/Target Names
 
     func validProductNames(project: Xcode.Project) throws -> [String] {
         // find our build targets
@@ -214,8 +153,6 @@ struct PackageInfo {
         )
     }
 
-    // MARK: - Platforms
-
     /// check if our command line platforms are supported by the package definition
     func supportedPlatforms() throws -> [TargetPlatform] {
         // if they have specified platforms all good, if not go everything except catalyst
@@ -243,8 +180,6 @@ struct PackageInfo {
     }
 }
 
-// MARK: - Supported Platform Types
-
 enum SupportedPlatforms {
     case noPackagePlatforms(plan: [SupportedPlatform])
     case packagePlatformsUnsupported(plan: [SupportedPlatform])
@@ -264,8 +199,6 @@ extension SupportedPlatform: Comparable {
         return lhs.platform.name < rhs.platform.name
     }
 }
-
-// MARK: - Validation Errors
 
 enum PackageValidationError: LocalizedError {
     case containsBinaryTargets([String])
@@ -303,3 +236,69 @@ extension Manifest {
     }
 }
 #endif
+
+private extension Manifest {
+    static func createManifest(root: AbsolutePath, workspace: Workspace, observabilitySystem: ObservabilitySystem) throws -> Manifest {
+        #if swift(>=5.6)
+        let scope = observabilitySystem.topScope
+        return try tsc_await {
+            workspace.loadRootManifest(
+                at: root,
+                observabilityScope: scope,
+                completion: $0
+            )
+        }
+        #elseif swift(>=5.5)
+        let swiftCompiler = toolchain.swiftCompiler
+        return try tsc_await {
+            ManifestLoader.loadRootManifest(
+                at: root,
+                swiftCompiler: swiftCompiler,
+                swiftCompilerFlags: [],
+                identityResolver: DefaultIdentityResolver(),
+                on: DispatchQueue.global(qos: .background),
+                completion: $0
+            )
+        }
+        #else
+        return try ManifestLoader.loadManifest(
+            packagePath: root,
+            swiftCompiler: toolchain.swiftCompiler,
+            packageKind: .root
+        )
+        #endif
+    }
+}
+
+private extension PackageGraph {
+    init(root: AbsolutePath, workspace: Workspace, observabilitySystem: ObservabilitySystem) throws {
+        #if swift(>=5.6)
+        self = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
+        #elseif swift(>=5.5)
+        self = try workspace.loadPackageGraph(rootPath: root, diagnostics: diagnostics)
+        #else
+        self = workspace.loadPackageGraph(root: root, diagnostics: diagnostics)
+        #endif
+    }
+}
+
+private extension Workspace {
+    convenience init(root: AbsolutePath, toolchain: UserToolchain) throws {
+        #if swift(>=5.7)
+        let loader = ManifestLoader(toolchain: toolchain)
+        try self.init(forRootPackage: root, customManifestLoader: loader)
+        #elseif swift(>=5.6)
+        let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
+        let loader = ManifestLoader(toolchain: resources)
+        try self.init(forRootPackage: root, customManifestLoader: loader)
+        #else
+        #if swift(>=5.5)
+        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler, swiftCompilerFlags: [])
+        #else
+        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler)
+        #endif
+        let loader = ManifestLoader(manifestResources: resources)
+        self = Workspace.create(forRootPackage: root, manifestLoader: loader)
+        #endif
+    }
+}
