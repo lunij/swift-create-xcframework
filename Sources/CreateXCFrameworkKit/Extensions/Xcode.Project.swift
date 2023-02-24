@@ -1,4 +1,3 @@
-import Foundation
 import Xcodeproj
 
 extension Xcode.Project {

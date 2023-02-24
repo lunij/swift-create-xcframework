@@ -302,3 +302,22 @@ private extension Workspace {
         #endif
     }
 }
+
+private extension ProductType {
+    var isLibrary: Bool {
+        if case .library = self {
+            return true
+        }
+        return false
+    }
+}
+
+private extension Manifest {
+    var libraryProductNames: [String] {
+        products
+            .compactMap { product in
+                guard product.type.isLibrary else { return nil }
+                return product.name
+            }
+    }
+}

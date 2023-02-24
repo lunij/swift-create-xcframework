@@ -14,6 +14,7 @@ opt_in_rules:
   - explicit_init
   - extension_access_modifier
   - fatal_error_message
+  - file_name
   - first_where
   - identical_operands
   - joined_default_parameter
