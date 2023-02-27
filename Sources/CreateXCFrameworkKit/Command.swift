@@ -101,14 +101,3 @@ public struct Command: ParsableCommand {
         return xcframeworkFiles
     }
 }
-
-private extension PackageInfo {
-    func validate() throws {
-        for error in validationErrors() {
-            if error.isFatal {
-                throw error
-            }
-            logger.log("\(error)")
-        }
-    }
-}

@@ -72,45 +72,40 @@ struct PackageInfo {
         manifest = try .createManifest(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
     }
 
-    func validationErrors() -> [PackageValidationError] {
-        var errors = [PackageValidationError]()
+    func validate() throws {
+        var errors: [PackageValidationError] = []
 
-        // check the graph for binary targets
-        let binary = graph.allTargets.filter { $0.type == .binary }
-        if binary.isEmpty == false {
-            errors.append(.containsBinaryTargets(binary.map(\.name)))
+        let binaryTargets = graph.allTargets.filter { $0.type == .binary }
+        if binaryTargets.isNotEmpty {
+            errors.append(.containsBinaryTargets(binaryTargets.map(\.name)))
         }
 
-        // check for system modules
-        let system = graph.allTargets.filter { $0.type == .systemModule }
-        if system.isEmpty == false {
-            errors.append(.containsSystemModules(system.map(\.name)))
+        let systemTargets = graph.allTargets.filter { $0.type == .systemModule }
+        if systemTargets.isNotEmpty {
+            errors.append(.containsSystemModules(systemTargets.map(\.name)))
         }
 
-        // and for conditional dependencies
-        let conditionals = graph.allTargets.filter { $0.dependencies.contains { $0.conditions.isEmpty == false } }
-        if conditionals.isEmpty == false {
-            errors.append(.containsConditionalDependencies(conditionals.map(\.name)))
+        let conditionalDependencies = graph.allTargets.filter { $0.dependencies.contains { $0.conditions.isNotEmpty } }
+        if conditionalDependencies.isNotEmpty {
+            errors.append(.containsConditionalDependencies(conditionalDependencies.map(\.name)))
         }
 
-        return errors
+        let productNames = manifest.libraryProductNames
+        if productNames.isEmpty {
+            errors.append(.missingProducts)
+        }
+
+        if errors.isNotEmpty {
+            throw PackageError.validationFailed(errors)
+        }
     }
 
     func validProductNames(project: Xcode.Project) throws -> [String] {
-        // find our build targets
         let productNames: [String]
-        if options.products.isEmpty == false {
+        if options.products.isNotEmpty {
             productNames = options.products
         } else {
             productNames = manifest.libraryProductNames
-        }
-
-        // validation
-        guard productNames.isEmpty == false else {
-            throw ValidationError(
-                "No products to create frameworks for were found. Add library products to Package.swift"
-                    + " or specify products/targets on the command line."
-            )
         }
 
         let xcodeTargetNames = project.frameworkTargets.map(\.name)
@@ -200,31 +195,39 @@ extension SupportedPlatform: Comparable {
     }
 }
 
-enum PackageValidationError: LocalizedError {
+enum PackageError: Error, CustomStringConvertible {
+    case validationFailed([PackageValidationError])
+
+    var description: String {
+        switch self {
+        case let .validationFailed(errors):
+            return """
+            Package validation failed:
+            \(errors.map(\.description).joined(separator: "\n"))
+            """
+        }
+    }
+}
+
+enum PackageValidationError: Error, CustomStringConvertible {
     case containsBinaryTargets([String])
     case containsSystemModules([String])
     case containsConditionalDependencies([String])
+    case missingProducts
 
-    var isFatal: Bool {
-        switch self {
-        case .containsBinaryTargets, .containsSystemModules:
-            return true
-        case .containsConditionalDependencies:
-            return false
-        }
-    }
-
-    var errorDescription: String? {
+    var description: String {
         switch self {
         case let .containsBinaryTargets(targets):
-            return "Xcode project generation is not supported by Swift Package Manager for packages that contain binary targets."
-                + "These binary targets were detected: \(targets.joined(separator: ", "))"
+            return "Xcode project generation is not supported by Swift Package Manager for packages that contain binary targets.\n"
+                + "Detected binary targets: \(targets.joined(separator: ", "))"
         case let .containsSystemModules(targets):
-            return "Xcode project generation is not supported by Swift Package Manager for packages that reference system modules."
-                + "These system modules were referenced: \(targets.joined(separator: ", "))"
+            return "Xcode project generation is not supported by Swift Package Manager for packages that reference system modules.\n"
+                + "Referenced system modules: \(targets.joined(separator: ", "))"
         case let .containsConditionalDependencies(targets):
-            return "Xcode project generation does not support conditional target dependencies, so the generated project may not build successfully."
-                + "These targets contain conditional dependencies: \(targets.joined(separator: ", "))"
+            return "Xcode project generation does not support conditional target dependencies, so the generated project may not build successfully.\n"
+                + "Targets with conditional dependencies: \(targets.joined(separator: ", "))"
+        case .missingProducts:
+            return "No products to create XCFrameworks for were found"
         }
     }
 }
