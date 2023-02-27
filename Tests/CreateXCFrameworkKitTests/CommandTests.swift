@@ -23,6 +23,16 @@ final class CommandTests: XCTestCase {
         ])
     }
 
+    func test_listProducts() throws {
+        try fixtureManager.setUpFixture(named: "MinimalManifest")
+        try Command.makeTestable("--list-products").run()
+        XCTAssertEqual(mockLogger.calls, [
+            .log("debug: evaluating manifest for \'test_listproducts()\' v. unknown "),
+            .log("debug: evaluating manifest for \'test_listproducts()\' v. unknown "),
+            .log("Available FixturePackage products:\n    FixtureLibrary")
+        ])
+    }
+
     func test_manifestWithErrors() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithErrors")
 
@@ -72,6 +82,10 @@ final class CommandTests: XCTestCase {
 }
 
 private extension Command {
+    static func makeTestable(_ arguments: String..., file: StaticString = #filePath, line: UInt = #line) throws -> Command {
+        try makeTestable(arguments, file: file, line: line)
+    }
+
     static func makeTestable(_ arguments: [String] = [], file: StaticString = #filePath, line: UInt = #line) throws -> Command {
         try XCTUnwrap(Self.parseAsRoot(arguments) as? Command, file: file, line: line)
     }

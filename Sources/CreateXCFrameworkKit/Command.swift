@@ -28,35 +28,34 @@ public struct Command: ParsableCommand {
     public func run() throws {
         let package = try PackageInfo(options: options)
 
-//        let xcframeworkFiles = try createXCFrameworks(from: package)
+        if options.listProducts {
+            return package.listProducts()
+        }
 
-//        if options.zip {
-//            let zipper = Zipper(package: package)
-//            let zipped = try xcframeworkFiles.flatMap { pair -> [URL] in
-//                let zip = try zipper.zip(target: pair.0, version: self.options.zipVersion, file: pair.1)
-//                let checksum = try zipper.checksum(file: zip)
-//                try zipper.clean(file: pair.1)
-//                return [zip, checksum]
-//            }
-//
-//            if options.githubAction {
-//                let zips = zipped.map(\.path).joined(separator: "\n")
-//                let data = Data(zips.utf8)
-//                let url = URL(fileURLWithPath: options.buildPath).appendingPathComponent("xcframework-zipfile.url")
-//                try data.write(to: url)
-//            }
-//        }
+        let xcframeworkFiles = try createXCFrameworks(from: package)
+
+        if options.zip {
+            let zipper = Zipper(package: package)
+            let zipped = try xcframeworkFiles.flatMap { pair -> [URL] in
+                let zip = try zipper.zip(target: pair.0, version: self.options.zipVersion, file: pair.1)
+                let checksum = try zipper.checksum(file: zip)
+                try zipper.clean(file: pair.1)
+                return [zip, checksum]
+            }
+
+            if options.githubAction {
+                let zips = zipped.map(\.path).joined(separator: "\n")
+                let data = Data(zips.utf8)
+                let url = URL(fileURLWithPath: options.buildPath).appendingPathComponent("xcframework-zipfile.url")
+                try data.write(to: url)
+            }
+        }
     }
 
     private func createXCFrameworks(from package: PackageInfo) throws -> [(String, URL)] {
         let generator = ProjectGenerator(package: package)
         try generator.writeDistributionXcconfig()
         let project = try generator.generate()
-
-        if options.listProducts {
-            package.printAllProducts(project: project)
-            Darwin.exit(0)
-        }
 
         let productNames = try package.validProductNames(project: project)
 

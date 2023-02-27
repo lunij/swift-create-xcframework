@@ -135,21 +135,9 @@ struct PackageInfo {
         return productNames
     }
 
-    func printAllProducts(project: Xcode.Project) {
-        let allLibraryProductNames = manifest.libraryProductNames
-        let xcodeTargetNames = project.frameworkTargets.map(\.name)
-        let nonRootPackageTargets = xcodeTargetNames.filter { allLibraryProductNames.contains($0) == false }
-
-        logger.log(
-            """
-            \nAvailable \(manifest.displayName) products:
-                \(allLibraryProductNames.sorted().joined(separator: "\n    "))
-
-            Additional available targets:
-                \(nonRootPackageTargets.sorted().joined(separator: "\n    "))
-            \n
-            """
-        )
+    func listProducts() {
+        let productNames = manifest.libraryProductNames.sorted()
+        logger.log("Available \(manifest.displayName) products:\n    \(productNames.joined(separator: "\n    "))")
     }
 
     // MARK: - Helpers
