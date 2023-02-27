@@ -112,13 +112,3 @@ private extension PackageInfo {
         }
     }
 }
-
-private enum Error: Swift.Error, LocalizedError {
-    case noProducts
-
-    var errorDescription: String? {
-        switch self {
-        case .noProducts: return ""
-        }
-    }
-}
