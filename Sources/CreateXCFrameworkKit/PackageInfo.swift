@@ -16,6 +16,7 @@ import TSCBasic
 struct PackageInfo {
     let rootDirectory: URL
     let buildDirectory: URL
+    let platforms: [TargetPlatform]
 
     var projectBuildDirectory: URL {
         buildDirectory
@@ -70,9 +71,12 @@ struct PackageInfo {
         workspace = try Workspace(root: root, toolchain: toolchain)
         graph = try PackageGraph(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
         manifest = try .createManifest(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
+        platforms = manifest.filterPlatforms(to: options.platform)
+
+        try validate()
     }
 
-    func validate() throws {
+    private func validate() throws {
         var errors: [PackageValidationError] = []
 
         let binaryTargets = graph.allTargets.filter { $0.type == .binary }
@@ -146,26 +150,6 @@ struct PackageInfo {
             \n
             """
         )
-    }
-
-    /// check if our command line platforms are supported by the package definition
-    func supportedPlatforms() throws -> [TargetPlatform] {
-        // if they have specified platforms all good, if not go everything except catalyst
-        let supported = options.platform.nonEmpty ?? TargetPlatform.allCases.filter { $0 != .maccatalyst }
-
-        // do we have package platforms defined?
-        guard let packagePlatforms = manifest.platforms.nonEmpty else {
-            return supported
-        }
-
-        // filter our package platforms to make sure everything is supported
-        let target = packagePlatforms
-            .compactMap { platform -> [TargetPlatform]? in
-                supported.filter { $0.platformName == platform.platformName }
-            }
-            .flatMap { $0 }
-
-        return target
     }
 
     // MARK: - Helpers
@@ -322,5 +306,21 @@ private extension Manifest {
                 guard product.type.isLibrary else { return nil }
                 return product.name
             }
+    }
+
+    func filterPlatforms(to userSpecifiedPlatforms: [TargetPlatform]) -> [TargetPlatform] {
+        let supported = userSpecifiedPlatforms.nonEmpty ?? TargetPlatform.allCases.filter { $0 != .maccatalyst }
+
+        guard let packagePlatforms = platforms.nonEmpty else {
+            return supported
+        }
+
+        let target = packagePlatforms
+            .compactMap { platform -> [TargetPlatform]? in
+                supported.filter { $0.platformName == platform.platformName }
+            }
+            .flatMap { $0 }
+
+        return target
     }
 }

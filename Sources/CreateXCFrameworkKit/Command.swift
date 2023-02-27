@@ -27,7 +27,6 @@ public struct Command: ParsableCommand {
 
     public func run() throws {
         let package = try PackageInfo(options: options)
-        try package.validate()
 
 //        let xcframeworkFiles = try createXCFrameworks(from: package)
 
@@ -50,9 +49,6 @@ public struct Command: ParsableCommand {
     }
 
     private func createXCFrameworks(from package: PackageInfo) throws -> [(String, URL)] {
-        let platforms = try package.supportedPlatforms()
-        let sdks = platforms.flatMap(\.sdks)
-
         let generator = ProjectGenerator(package: package)
         try generator.writeDistributionXcconfig()
         let project = try generator.generate()
@@ -83,7 +79,7 @@ public struct Command: ParsableCommand {
 
         var frameworkFiles: [String: [XcodeBuilder.BuildResult]] = [:]
 
-        for sdk in sdks {
+        for sdk in package.platforms.flatMap(\.sdks) {
             try builder.build(targets: productNames, sdk: sdk).forEach { key, buildResult in
                 if frameworkFiles[key] == nil {
                     frameworkFiles[key] = []
