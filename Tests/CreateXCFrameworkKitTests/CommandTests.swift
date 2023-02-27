@@ -33,6 +33,15 @@ final class CommandTests: XCTestCase {
         ])
     }
 
+    func test_filterProducts() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
+        try Command.makeTestable("FixtureLibrary2").run()
+        XCTAssertEqual(mockLogger.calls, [
+            .log("debug: evaluating manifest for \'test_filterproducts()\' v. unknown "),
+            .log("debug: evaluating manifest for \'test_filterproducts()\' v. unknown ")
+        ])
+    }
+
     func test_manifestWithErrors() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithErrors")
 

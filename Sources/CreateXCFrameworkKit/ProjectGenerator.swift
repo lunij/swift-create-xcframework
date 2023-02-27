@@ -111,7 +111,7 @@ extension Xcode.Project {
         return mainGroup.addGroup(path: "", name: name)
     }
 
-    func enableDistribution(targets: [String], xcconfig: RelativePath) throws {
+    func enableDistribution(targets: [String], xcconfig: RelativePath) {
         let group = configGroup
         let ref = group.addFileReference(
             path: xcconfig.pathString,

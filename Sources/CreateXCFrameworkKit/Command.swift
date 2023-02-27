@@ -57,13 +57,11 @@ public struct Command: ParsableCommand {
         try generator.writeDistributionXcconfig()
         let project = try generator.generate()
 
-        let productNames = try package.validProductNames(project: project)
-
         // we've applied the xcconfig to everything, but some dependencies (*cough* swift-nio)
         // have build errors, so we remove it from targets we're not building
         if options.stackEvolution == false {
-            try project.enableDistribution(
-                targets: productNames,
+            project.enableDistribution(
+                targets: package.productNames,
                 xcconfig: AbsolutePath(package.distributionBuildXcconfig.path).relative(to: AbsolutePath(package.rootDirectory.path))
             )
         }
@@ -79,7 +77,7 @@ public struct Command: ParsableCommand {
         var frameworkFiles: [String: [XcodeBuilder.BuildResult]] = [:]
 
         for sdk in package.platforms.flatMap(\.sdks) {
-            try builder.build(targets: productNames, sdk: sdk).forEach { key, buildResult in
+            try builder.build(targets: package.productNames, sdk: sdk).forEach { key, buildResult in
                 if frameworkFiles[key] == nil {
                     frameworkFiles[key] = []
                 }

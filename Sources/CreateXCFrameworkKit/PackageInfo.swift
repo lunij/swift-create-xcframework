@@ -17,6 +17,7 @@ struct PackageInfo {
     let rootDirectory: URL
     let buildDirectory: URL
     let platforms: [TargetPlatform]
+    let productNames: [String]
 
     var projectBuildDirectory: URL {
         buildDirectory
@@ -72,6 +73,7 @@ struct PackageInfo {
         graph = try PackageGraph(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
         manifest = try .createManifest(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
         platforms = manifest.filterPlatforms(to: options.platform)
+        productNames = manifest.filterProductNames(to: options.products)
 
         try validate()
     }
@@ -102,37 +104,6 @@ struct PackageInfo {
         if errors.isNotEmpty {
             throw PackageError.validationFailed(errors)
         }
-    }
-
-    func validProductNames(project: Xcode.Project) throws -> [String] {
-        let productNames: [String]
-        if options.products.isNotEmpty {
-            productNames = options.products
-        } else {
-            productNames = manifest.libraryProductNames
-        }
-
-        let xcodeTargetNames = project.frameworkTargets.map(\.name)
-        let invalidProducts = productNames.filter { xcodeTargetNames.contains($0) == false }
-        guard invalidProducts.isEmpty == true else {
-            let allLibraryProductNames = manifest.libraryProductNames
-            let nonRootPackageTargets = xcodeTargetNames.filter { allLibraryProductNames.contains($0) == false }
-
-            throw ValidationError(
-                """
-                Invalid product/target name(s):
-                    \(invalidProducts.joined(separator: "\n    "))
-
-                Available \(manifest.displayName) products:
-                    \(allLibraryProductNames.sorted().joined(separator: "\n    "))
-
-                Additional available targets:
-                    \(nonRootPackageTargets.sorted().joined(separator: "\n    "))
-                """
-            )
-        }
-
-        return productNames
     }
 
     func listProducts() {
@@ -310,5 +281,11 @@ private extension Manifest {
             .flatMap { $0 }
 
         return target
+    }
+
+    func filterProductNames(to userSpecifiedProductNames: [String]) -> [String] {
+        libraryProductNames.filter { productName in
+            userSpecifiedProductNames.contains(productName)
+        }
     }
 }
