@@ -3,18 +3,14 @@ import PackageModel
 
 public extension Command {
     struct Options: ParsableArguments {
-        // MARK: - Package Loading
-
         @Option(help: ArgumentHelp("The location of the Package", valueName: "directory"))
         var packagePath = "."
-
-        // MARK: - Building
 
         @Option(help: ArgumentHelp("The location of the build/cache directory to use", valueName: "directory"))
         var buildPath = ".build"
 
         @Option(help: ArgumentHelp("Build with a specific configuration", valueName: "debug|release"))
-        var configuration = PackageModel.BuildConfiguration.release
+        var configuration = BuildConfiguration.release
 
         @Flag(inversion: .prefixedNo, help: "Whether to clean before we build")
         var clean = true
@@ -40,8 +36,6 @@ public extension Command {
         ))
         var xcSetting: [BuildSetting] = []
 
-        // MARK: - Output Options
-
         @Option(
             help: ArgumentHelp(
                 "A list of platforms you want to build for. Can be specified multiple times."
@@ -49,7 +43,10 @@ public extension Command {
                 valueName: TargetPlatform.allCases.map(\.rawValue).joined(separator: "|")
             )
         )
-        var platform: [TargetPlatform] = []
+        var platforms: [TargetPlatform] = []
+
+        @Option(help: "A list of products to build. Defaults to building all `.library` products")
+        var products: [String] = []
 
         @Option(help: ArgumentHelp("Where to place the compiled .xcframework(s)", valueName: "directory"))
         var output = "."
@@ -70,15 +67,8 @@ public extension Command {
         @Flag(help: .hidden)
         var githubAction = false
 
-        // MARK: - Targets
-
-        @Argument(help: "An optional list of products (or targets) to build. Defaults to building all `.library` products")
-        var products: [String] = []
-
         public init() {}
     }
 }
-
-// MARK: - ParsableArguments Extensions
 
 extension PackageModel.BuildConfiguration: ExpressibleByArgument {}

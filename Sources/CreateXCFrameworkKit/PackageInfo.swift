@@ -72,7 +72,7 @@ struct PackageInfo {
         workspace = try Workspace(root: root, toolchain: toolchain)
         graph = try PackageGraph(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
         manifest = try .createManifest(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
-        platforms = manifest.filterPlatforms(to: options.platform)
+        platforms = manifest.filterPlatforms(to: options.platforms)
         productNames = manifest.filterProductNames(to: options.products)
 
         try validate()
