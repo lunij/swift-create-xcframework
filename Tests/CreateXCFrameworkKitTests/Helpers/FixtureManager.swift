@@ -20,6 +20,7 @@ final class FixtureManager {
         guard let resourceURL = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "Fixtures") else {
             throw FixtureError.notFound(name)
         }
+        let testName = testName.removeCharacters("()")
         let testDirectoryURL = try createTestDirectory(named: testName)
         try copyContent(from: resourceURL, into: testDirectoryURL)
         fileManager.changeCurrentDirectoryPath(testDirectoryURL.path)
@@ -60,6 +61,16 @@ private extension FileManager {
     func contentsOfDirectory(at url: URL) throws -> [URL] {
         try contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
             .map { $0.makeRelative(to: url) }
+    }
+}
+
+private extension String {
+    func removeCharacters(_ characters: String) -> String {
+        var string = self
+        for character in characters {
+            string = string.replacingOccurrences(of: "\(character)", with: "")
+        }
+        return string
     }
 }
 
