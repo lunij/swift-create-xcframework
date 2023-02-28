@@ -32,7 +32,8 @@ public struct Command: ParsableCommand {
             return package.listProducts()
         }
 
-        let xcframeworkFiles = try createXCFrameworks(from: package)
+        let xcodeProject = try createXcodeProject(from: package)
+        let xcframeworkFiles = try createXCFrameworks(from: package, xcodeProject: xcodeProject)
 
         if options.zip {
             let zipper = Zipper(package: package)
@@ -52,23 +53,26 @@ public struct Command: ParsableCommand {
         }
     }
 
-    private func createXCFrameworks(from package: PackageInfo) throws -> [(String, URL)] {
-        let generator = ProjectGenerator(package: package)
+    private func createXcodeProject(from package: PackageInfo) throws -> XcodeProject {
+        let generator = XcodeProjectGenerator(package: package)
         try generator.writeDistributionXcconfig()
-        let project = try generator.generate()
+        let xcodeProject = try generator.generate()
 
         // we've applied the xcconfig to everything, but some dependencies (*cough* swift-nio)
         // have build errors, so we remove it from targets we're not building
         if options.stackEvolution == false {
-            project.enableDistribution(
+            xcodeProject.enableDistribution(
                 targets: package.productNames,
                 xcconfig: AbsolutePath(package.distributionBuildXcconfig.path).relative(to: AbsolutePath(package.rootDirectory.path))
             )
         }
 
-        try project.save(to: generator.projectPath)
+        try xcodeProject.save(to: generator.projectPath)
+        return xcodeProject
+    }
 
-        let builder = XcodeBuilder(project: project, projectPath: generator.projectPath, package: package, options: options)
+    private func createXCFrameworks(from package: PackageInfo, xcodeProject: XcodeProject) throws -> [(String, URL)] {
+        let builder = XcodeBuilder(project: xcodeProject, package: package, options: options)
 
         if options.clean {
             try builder.clean()

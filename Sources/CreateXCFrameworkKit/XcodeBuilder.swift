@@ -5,8 +5,7 @@ import TSCBasic
 import Xcodeproj
 
 struct XcodeBuilder {
-    let project: Xcode.Project
-    let projectPath: AbsolutePath
+    let project: XcodeProject
     let package: PackageInfo
     let options: Command.Options
 
@@ -19,14 +18,12 @@ struct XcodeBuilder {
     }
 
     init(
-        project: Xcode.Project,
-        projectPath: AbsolutePath,
+        project: XcodeProject,
         package: PackageInfo,
         options: Command.Options,
         fileManager: FileManager = .default
     ) {
         self.project = project
-        self.projectPath = projectPath
         self.package = package
         self.options = options
         self.fileManager = fileManager
@@ -36,7 +33,7 @@ struct XcodeBuilder {
         let arguments = [
             "xcrun",
             "xcodebuild",
-            "-project", projectPath.pathString,
+            "-project", project.path.pathString,
             "BUILD_DIR=\(buildDirectory.path)",
             "clean"
         ]
@@ -94,7 +91,7 @@ struct XcodeBuilder {
         var arguments = [
             "xcrun",
             "xcodebuild",
-            "-project", projectPath.pathString,
+            "-project", project.path.pathString,
             "-configuration", options.configuration.xcodeConfigurationName,
             "-archivePath", buildDirectory.appendingPathComponent(productName(target: target)).appendingPathComponent(sdk.archiveName).path,
             "-destination", sdk.destination,
