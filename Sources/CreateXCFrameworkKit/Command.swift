@@ -88,7 +88,7 @@ public struct Command: ParsableCommand {
         var xcframeworkFiles: [(String, URL)] = []
 
         try frameworkFiles.forEach { key, buildResults in
-            xcframeworkFiles.append((key, try builder.merge(target: key, buildResults: buildResults)))
+            xcframeworkFiles.append((key, try builder.createXCFramework(target: key, buildResults: buildResults)))
         }
 
         return xcframeworkFiles

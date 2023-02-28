@@ -2,43 +2,46 @@ import Build
 import Foundation
 import PackageModel
 import TSCBasic
-import TSCUtility
 import Xcodeproj
 
 struct XcodeBuilder {
-    // MARK: - Properties
-
-    let path: AbsolutePath
     let project: Xcode.Project
+    let projectPath: AbsolutePath
     let package: PackageInfo
     let options: Command.Options
 
-    var buildDirectory: Foundation.URL {
+    private let fileManager: FileManager
+
+    var buildDirectory: URL {
         package.projectBuildDirectory
             .appendingPathComponent("build")
             .absoluteURL
     }
 
-    // MARK: - Initialisation
-
-    init(project: Xcode.Project, projectPath: AbsolutePath, package: PackageInfo, options: Command.Options) {
+    init(
+        project: Xcode.Project,
+        projectPath: AbsolutePath,
+        package: PackageInfo,
+        options: Command.Options,
+        fileManager: FileManager = .default
+    ) {
         self.project = project
-        path = projectPath
+        self.projectPath = projectPath
         self.package = package
         self.options = options
+        self.fileManager = fileManager
     }
 
-    // MARK: - Clean
-
     func clean() throws {
+        let arguments = [
+            "xcrun",
+            "xcodebuild",
+            "-project", projectPath.pathString,
+            "BUILD_DIR=\(buildDirectory.path)",
+            "clean"
+        ]
         let process = TSCBasic.Process(
-            arguments: [
-                "xcrun",
-                "xcodebuild",
-                "-project", path.pathString,
-                "BUILD_DIR=\(buildDirectory.path)",
-                "clean"
-            ],
+            arguments: arguments,
             outputRedirection: .none
         )
 
@@ -46,27 +49,26 @@ struct XcodeBuilder {
         let result = try process.waitUntilExit()
 
         switch result.exitStatus {
-        case let .terminated(code: code):
-            if code != 0 {
-                throw Error.nonZeroExit("xcodebuild", code)
-            }
-        case let .signalled(signal: signal):
-            throw Error.signalExit("xcodebuild", signal)
+        case let .terminated(code) where code != 0:
+            throw CommandError.nonZeroExit(code, arguments)
+        case let .signalled(signal):
+            throw CommandError.signalExit(signal, arguments)
+        default:
+            break
         }
     }
 
-    // MARK: - Build
-
     struct BuildResult {
         let target: String
-        let frameworkPath: Foundation.URL
-        let debugSymbolsPath: Foundation.URL
+        let frameworkPath: URL
+        let debugSymbolsPath: URL
     }
 
     func build(targets: [String], sdk: TargetPlatform.SDK) throws -> [String: BuildResult] {
         for target in targets {
+            let arguments = try createArchiveCommand(target: target, sdk: sdk)
             let process = TSCBasic.Process(
-                arguments: try buildCommand(target: target, sdk: sdk),
+                arguments: arguments,
                 outputRedirection: .none
             )
 
@@ -74,12 +76,12 @@ struct XcodeBuilder {
             let result = try process.waitUntilExit()
 
             switch result.exitStatus {
-            case let .terminated(code: code):
-                if code != 0 {
-                    throw Error.nonZeroExit("xcodebuild", code)
-                }
+            case let .terminated(code) where code != 0:
+                throw CommandError.nonZeroExit(code, arguments)
             case let .signalled(signal: signal):
-                throw Error.signalExit("xcodebuild", signal)
+                throw CommandError.signalExit(signal, arguments)
+            default:
+                break
             }
         }
 
@@ -93,11 +95,11 @@ struct XcodeBuilder {
             }
     }
 
-    private func buildCommand(target: String, sdk: TargetPlatform.SDK) throws -> [String] {
-        var command: [String] = [
+    private func createArchiveCommand(target: String, sdk: TargetPlatform.SDK) throws -> [String] {
+        var arguments = [
             "xcrun",
             "xcodebuild",
-            "-project", path.pathString,
+            "-project", projectPath.pathString,
             "-configuration", options.configuration.xcodeConfigurationName,
             "-archivePath", buildDirectory.appendingPathComponent(productName(target: target)).appendingPathComponent(sdk.archiveName).path,
             "-destination", sdk.destination,
@@ -105,34 +107,27 @@ struct XcodeBuilder {
             "SKIP_INSTALL=NO"
         ]
 
-        // add SDK-specific build settings
         if let settings = sdk.buildSettings {
             for setting in settings {
-                command.append("\(setting.key)=\(setting.value)")
+                arguments.append("\(setting.key)=\(setting.value)")
             }
         }
 
-        // enable evolution for the whole stack
         if options.stackEvolution {
-            command.append("BUILD_LIBRARY_FOR_DISTRIBUTION=YES")
+            arguments.append("BUILD_LIBRARY_FOR_DISTRIBUTION=YES")
         }
 
-        // add build settings provided in the invocation
         options.xcSetting.forEach { setting in
-            command.append("\(setting.name)=\(setting.value)")
+            arguments.append("\(setting.name)=\(setting.value)")
         }
 
-        // add our targets
-        command += ["-scheme", target]
+        arguments += ["-scheme", target]
+        arguments += ["archive"]
 
-        // and the command
-        command += ["archive"]
-
-        return command
+        return arguments
     }
 
-    // we should probably pull this from the build output but we just make assumptions here
-    private func frameworkPath(target: String, sdk: TargetPlatform.SDK) -> Foundation.URL {
+    private func frameworkPath(target: String, sdk: TargetPlatform.SDK) -> URL {
         buildDirectory
             .appendingPathComponent(productName(target: target))
             .appendingPathComponent(sdk.archiveName)
@@ -141,28 +136,26 @@ struct XcodeBuilder {
             .absoluteURL
     }
 
-    // MARK: - Debug Symbols
-
-    private func debugSymbolsPath(target _: String, sdk: TargetPlatform.SDK) -> Foundation.URL {
+    private func debugSymbolsPath(target _: String, sdk: TargetPlatform.SDK) -> URL {
         buildDirectory
             .appendingPathComponent(sdk.releaseFolder)
     }
 
-    private func dSYMPath(target: String, path: Foundation.URL) -> Foundation.URL {
+    private func dSYMPath(target: String, path: URL) -> URL {
         path
             .appendingPathComponent("\(productName(target: target)).framework.dSYM")
     }
 
-    private func dwarfPath(target: String, path: Foundation.URL) -> Foundation.URL {
+    private func dwarfPath(target: String, path: URL) -> URL {
         path
             .appendingPathComponent("Contents/Resources/DWARF")
             .appendingPathComponent(productName(target: target))
     }
 
-    private func debugSymbolFiles(target: String, path: Foundation.URL) throws -> [Foundation.URL] {
+    private func debugSymbolFiles(target: String, path: URL) throws -> [URL] {
         // if there is no dSYM directory there is no point continuing
         let dsym = dSYMPath(target: target, path: path)
-        guard FileManager.default.fileExists(atPath: dsym.absoluteURL.path) else {
+        guard fileManager.fileExists(atPath: dsym.absoluteURL.path) else {
             return []
         }
 
@@ -172,7 +165,7 @@ struct XcodeBuilder {
 
         // if we have a dwarf file we can inspect that to get the slice UUIDs
         let dwarf = dwarfPath(target: target, path: dsym)
-        guard FileManager.default.fileExists(atPath: dwarf.absoluteURL.path) else {
+        guard fileManager.fileExists(atPath: dwarf.absoluteURL.path) else {
             return files
         }
 
@@ -188,16 +181,15 @@ struct XcodeBuilder {
         return files
     }
 
-    private func binarySliceIdentifiers(file: Foundation.URL) throws -> [UUID] {
-        let command = [
+    private func binarySliceIdentifiers(file: URL) throws -> [UUID] {
+        let arguments = [
             "xcrun",
             "dwarfdump",
             "--uuid",
             file.absoluteURL.path
         ]
-
         let process = TSCBasic.Process(
-            arguments: command,
+            arguments: arguments,
             outputRedirection: .collect
         )
 
@@ -205,13 +197,12 @@ struct XcodeBuilder {
         let result = try process.waitUntilExit()
 
         switch result.exitStatus {
-        case let .terminated(code: code):
-            if code != 0 {
-                throw Error.nonZeroExit("dwarfdump", code)
-            }
-
-        case let .signalled(signal: signal):
-            throw Error.signalExit("dwarfdump", signal)
+        case let .terminated(code) where code != 0:
+            throw CommandError.nonZeroExit(code, arguments)
+        case let .signalled(signal):
+            throw CommandError.signalExit(signal, arguments)
+        default:
+            break
         }
 
         switch result.output {
@@ -222,20 +213,18 @@ struct XcodeBuilder {
             return try string.sliceIdentifiers()
 
         case let .failure(error):
-            throw Error.errorThrown("dwarfdump", error)
+            throw CommandError.errorThrown(error, arguments)
         }
     }
 
-    // MARK: - Merging
-
-    func merge(target: String, buildResults: [BuildResult]) throws -> Foundation.URL {
+    func createXCFramework(target: String, buildResults: [BuildResult]) throws -> URL {
         let outputPath = xcframeworkPath(target: target)
 
-        // try to remove it if its already there, otherwise we're going to get errors
-        try? FileManager.default.removeItem(at: outputPath)
+        try? fileManager.removeItem(at: outputPath)
 
+        let arguments = try createXCFrameworkCommand(outputPath: outputPath, buildResults: buildResults)
         let process = TSCBasic.Process(
-            arguments: try mergeCommand(outputPath: outputPath, buildResults: buildResults),
+            arguments: arguments,
             outputRedirection: .none
         )
 
@@ -243,31 +232,30 @@ struct XcodeBuilder {
         let result = try process.waitUntilExit()
 
         switch result.exitStatus {
-        case let .terminated(code: code):
-            if code != 0 {
-                throw Error.nonZeroExit("xcodebuild", code)
-            }
-        case let .signalled(signal: signal):
-            throw Error.signalExit("xcodebuild", signal)
+        case let .terminated(code) where code != 0:
+            throw CommandError.nonZeroExit(code, arguments)
+        case let .signalled(signal):
+            throw CommandError.signalExit(signal, arguments)
+        default:
+            break
         }
 
         return outputPath
     }
 
-    private func mergeCommand(outputPath: Foundation.URL, buildResults: [BuildResult]) throws -> [String] {
-        var command: [String] = [
+    private func createXCFrameworkCommand(outputPath: URL, buildResults: [BuildResult]) throws -> [String] {
+        var arguments = [
             "xcrun",
             "xcodebuild",
             "-create-xcframework"
         ]
 
-        // add our frameworks and any debugging symbols
-        command += try buildResults.flatMap { result -> [String] in
+        arguments += try buildResults.flatMap { result -> [String] in
             var args = ["-framework", result.frameworkPath.absoluteURL.path]
 
             if self.package.options.debugSymbols {
                 let symbolFiles = try self.debugSymbolFiles(target: result.target, path: result.debugSymbolsPath)
-                for file in symbolFiles where FileManager.default.fileExists(atPath: file.absoluteURL.path) {
+                for file in symbolFiles where fileManager.fileExists(atPath: file.absoluteURL.path) {
                     args += ["-debug-symbols", file.absoluteURL.path]
                 }
             }
@@ -275,13 +263,12 @@ struct XcodeBuilder {
             return args
         }
 
-        // and the output
-        command += ["-output", outputPath.path]
+        arguments += ["-output", outputPath.path]
 
-        return command
+        return arguments
     }
 
-    private func xcframeworkPath(target: String) -> Foundation.URL {
+    private func xcframeworkPath(target: String) -> URL {
         URL(fileURLWithPath: options.output)
             .appendingPathComponent("\(productName(target: target)).xcframework")
     }
@@ -293,30 +280,9 @@ struct XcodeBuilder {
             .replacingOccurrences(of: "[^0-9a-zA-Z]", with: "_", options: .regularExpression)
             .replacingOccurrences(of: "^[0-9]", with: "_", options: .regularExpression)
     }
-
-    // MARK: - Errors
-
-    enum Error: Swift.Error, LocalizedError {
-        case nonZeroExit(String, Int32)
-        case signalExit(String, Int32)
-        case errorThrown(String, Swift.Error)
-
-        var errorDescription: String? {
-            switch self {
-            case let .nonZeroExit(command, code):
-                return "\(command) exited with a non-zero code: \(code)"
-            case let .signalExit(command, signal):
-                return "\(command) exited due to signal: \(signal)"
-            case let .errorThrown(command, error):
-                return "\(command) returned unexpected error: \(error)"
-            }
-        }
-    }
 }
 
-// MARK: - Helper Extensions
-
-extension BuildConfiguration {
+private extension BuildConfiguration {
     var xcodeConfigurationName: String {
         switch self {
         case .debug: return "Debug"

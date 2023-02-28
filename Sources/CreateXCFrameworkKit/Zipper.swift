@@ -10,23 +10,27 @@ import TSCBasic
 import Workspace
 
 struct Zipper {
-    // MARK: - Properties
-
     let package: PackageInfo
 
     init(package: PackageInfo) {
         self.package = package
     }
 
-    // MARK: - Zippering
-
-    func zip(target: String, version: String?, file: Foundation.URL) throws -> Foundation.URL {
+    func zip(target: String, version: String?, file: URL) throws -> URL {
         let suffix = versionSuffix(target: target, default: version) ?? ""
         let zipPath = file.path.replacingOccurrences(of: "\\.xcframework$", with: "\(suffix).zip", options: .regularExpression)
         let zipURL = URL(fileURLWithPath: zipPath)
 
+        let arguments = [
+            "ditto",
+            "-c",
+            "-k",
+            "--keepParent",
+            file.path,
+            zipURL.path
+        ]
         let process = TSCBasic.Process(
-            arguments: zipCommand(source: file, target: zipURL),
+            arguments: arguments,
             outputRedirection: .none
         )
 
@@ -35,18 +39,18 @@ struct Zipper {
         let result = try process.waitUntilExit()
 
         switch result.exitStatus {
-        case let .terminated(code: code):
-            if code != 0 {
-                throw XcodeBuilder.Error.nonZeroExit("ditto", code)
-            }
-        case let .signalled(signal: signal):
-            throw XcodeBuilder.Error.signalExit("ditto", signal)
+        case let .terminated(code) where code != 0:
+            throw CommandError.nonZeroExit(code, arguments)
+        case let .signalled(signal):
+            throw CommandError.signalExit(signal, arguments)
+        default:
+            break
         }
 
         return zipURL
     }
 
-    func checksum(file: Foundation.URL) throws -> Foundation.URL {
+    func checksum(file: URL) throws -> URL {
         #if swift(>=5.7)
         let sum = try checksum(forBinaryArtifactAt: AbsolutePath(file.path))
         #elseif swift(>=5.6)
@@ -57,17 +61,6 @@ struct Zipper {
         let checksumFile = file.deletingPathExtension().appendingPathExtension("sha256")
         try Data(sum.utf8).write(to: checksumFile)
         return checksumFile
-    }
-
-    private func zipCommand(source: Foundation.URL, target: Foundation.URL) -> [String] {
-        [
-            "ditto",
-            "-c",
-            "-k",
-            "--keepParent",
-            source.path,
-            target.path
-        ]
     }
 
     private func versionSuffix(target: String, default fallback: String?) -> String? {
@@ -94,9 +87,7 @@ struct Zipper {
         return "-" + version.description
     }
 
-    // MARK: - Cleaning
-
-    func clean(file: Foundation.URL) throws {
+    func clean(file: URL) throws {
         try FileManager.default.removeItem(at: file)
     }
 
