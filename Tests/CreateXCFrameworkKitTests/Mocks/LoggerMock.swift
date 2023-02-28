@@ -7,7 +7,7 @@ class LoggerMock: Logging {
 
     var calls: [Call] = []
 
-    func log(_ message: @autoclosure () -> String) {
-        calls.append(.log(message()))
+    func log(_ message: @autoclosure () throws -> String) rethrows {
+        calls.append(.log(try message()))
     }
 }

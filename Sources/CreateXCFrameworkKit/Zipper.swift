@@ -40,7 +40,7 @@ struct Zipper {
 
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
-            throw CommandError.nonZeroExit(code, arguments)
+            throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
         case let .signalled(signal):
             throw CommandError.signalExit(signal, arguments)
         default:

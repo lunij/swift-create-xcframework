@@ -19,7 +19,8 @@ final class CommandTests: XCTestCase {
         try Command.makeTestable().run()
         XCTAssertEqual(mockLogger.calls, [
             .log("debug: evaluating manifest for 'test_minimalmanifest' v. unknown "),
-            .log("debug: evaluating manifest for 'test_minimalmanifest' v. unknown ")
+            .log("debug: evaluating manifest for 'test_minimalmanifest' v. unknown "),
+            .log("Cleaning...")
         ])
     }
 

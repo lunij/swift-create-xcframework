@@ -40,17 +40,15 @@ struct XcodeBuilder {
             "BUILD_DIR=\(buildDirectory.path)",
             "clean"
         ]
-        let process = TSCBasic.Process(
-            arguments: arguments,
-            outputRedirection: .none
-        )
-
+        let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
 
+        logger.log("Cleaning...")
+
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
-            throw CommandError.nonZeroExit(code, arguments)
+            throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
         case let .signalled(signal):
             throw CommandError.signalExit(signal, arguments)
         default:
@@ -67,17 +65,14 @@ struct XcodeBuilder {
     func build(targets: [String], sdk: TargetPlatform.SDK) throws -> [String: BuildResult] {
         for target in targets {
             let arguments = try createArchiveCommand(target: target, sdk: sdk)
-            let process = TSCBasic.Process(
-                arguments: arguments,
-                outputRedirection: .none
-            )
-
+            let process = TSCBasic.Process(arguments: arguments)
             try process.launch()
             let result = try process.waitUntilExit()
+            try result.utf8Output().log()
 
             switch result.exitStatus {
             case let .terminated(code) where code != 0:
-                throw CommandError.nonZeroExit(code, arguments)
+                throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
             case let .signalled(signal: signal):
                 throw CommandError.signalExit(signal, arguments)
             default:
@@ -188,17 +183,14 @@ struct XcodeBuilder {
             "--uuid",
             file.absoluteURL.path
         ]
-        let process = TSCBasic.Process(
-            arguments: arguments,
-            outputRedirection: .collect
-        )
-
+        let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
+        try result.utf8Output().log()
 
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
-            throw CommandError.nonZeroExit(code, arguments)
+            throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
         case let .signalled(signal):
             throw CommandError.signalExit(signal, arguments)
         default:
@@ -223,17 +215,14 @@ struct XcodeBuilder {
         try? fileManager.removeItem(at: outputPath)
 
         let arguments = try createXCFrameworkCommand(outputPath: outputPath, buildResults: buildResults)
-        let process = TSCBasic.Process(
-            arguments: arguments,
-            outputRedirection: .none
-        )
-
+        let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
+        try result.utf8Output().log()
 
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
-            throw CommandError.nonZeroExit(code, arguments)
+            throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
         case let .signalled(signal):
             throw CommandError.signalExit(signal, arguments)
         default:
