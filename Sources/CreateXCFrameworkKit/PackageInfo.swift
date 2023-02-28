@@ -1,17 +1,14 @@
 import ArgumentParser
+import Basics
 import Build
 import Foundation
+import PackageGraph
 import PackageLoading
 import PackageModel
 import SPMBuildCore
+import TSCBasic
 import Workspace
 import Xcodeproj
-
-#if swift(>=5.6)
-import Basics
-import PackageGraph
-import TSCBasic
-#endif
 
 struct PackageInfo {
     let rootDirectory: URL
@@ -47,13 +44,9 @@ struct PackageInfo {
         return rootDirectory.appendingPathComponent(path)
     }
 
-    #if swift(>=5.6)
     let observabilitySystem = ObservabilitySystem { _, diagnostics in
         logger.log("\(diagnostics.severity): \(diagnostics.message)")
     }
-    #else
-    let diagnostics = DiagnosticsEngine()
-    #endif
 
     let options: Command.Options
     let graph: PackageGraph
@@ -175,17 +168,8 @@ enum PackageValidationError: Error, CustomStringConvertible {
     }
 }
 
-#if swift(<5.6)
-extension Manifest {
-    var displayName: String {
-        name
-    }
-}
-#endif
-
 private extension Manifest {
     static func createManifest(root: AbsolutePath, workspace: Workspace, observabilitySystem: ObservabilitySystem) throws -> Manifest {
-        #if swift(>=5.6)
         let scope = observabilitySystem.topScope
         return try tsc_await {
             workspace.loadRootManifest(
@@ -194,58 +178,19 @@ private extension Manifest {
                 completion: $0
             )
         }
-        #elseif swift(>=5.5)
-        let swiftCompiler = toolchain.swiftCompiler
-        return try tsc_await {
-            ManifestLoader.loadRootManifest(
-                at: root,
-                swiftCompiler: swiftCompiler,
-                swiftCompilerFlags: [],
-                identityResolver: DefaultIdentityResolver(),
-                on: DispatchQueue.global(qos: .background),
-                completion: $0
-            )
-        }
-        #else
-        return try ManifestLoader.loadManifest(
-            packagePath: root,
-            swiftCompiler: toolchain.swiftCompiler,
-            packageKind: .root
-        )
-        #endif
     }
 }
 
 private extension PackageGraph {
     init(root: AbsolutePath, workspace: Workspace, observabilitySystem: ObservabilitySystem) throws {
-        #if swift(>=5.6)
         self = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
-        #elseif swift(>=5.5)
-        self = try workspace.loadPackageGraph(rootPath: root, diagnostics: diagnostics)
-        #else
-        self = workspace.loadPackageGraph(root: root, diagnostics: diagnostics)
-        #endif
     }
 }
 
 private extension Workspace {
     convenience init(root: AbsolutePath, toolchain: UserToolchain) throws {
-        #if swift(>=5.7)
         let loader = ManifestLoader(toolchain: toolchain)
         try self.init(forRootPackage: root, customManifestLoader: loader)
-        #elseif swift(>=5.6)
-        let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
-        let loader = ManifestLoader(toolchain: resources)
-        try self.init(forRootPackage: root, customManifestLoader: loader)
-        #else
-        #if swift(>=5.5)
-        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler, swiftCompilerFlags: [])
-        #else
-        let resources = try UserManifestResources(swiftCompiler: toolchain.swiftCompiler)
-        #endif
-        let loader = ManifestLoader(manifestResources: resources)
-        self = Workspace.create(forRootPackage: root, manifestLoader: loader)
-        #endif
     }
 }
 

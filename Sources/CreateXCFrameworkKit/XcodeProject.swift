@@ -41,11 +41,7 @@ struct XcodeProject {
         try path.appending(component: "project.pbxproj").open { stream in
             // Serialize the project model we created to a plist, and return
             // its string description.
-            #if swift(>=5.6)
             let str = try "// !$*UTF8*$!\n" + project.generatePlist().description
-            #else
-            let str = "// !$*UTF8*$!\n" + project.generatePlist().description
-            #endif
             stream(str)
         }
 

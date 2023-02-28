@@ -2,9 +2,7 @@
 import Basics
 #endif
 import Foundation
-#if swift(>=5.6)
 import PackageGraph
-#endif
 import PackageModel
 import TSCBasic
 import Workspace
@@ -51,13 +49,7 @@ struct Zipper {
     }
 
     func checksum(file: URL) throws -> URL {
-        #if swift(>=5.7)
         let sum = try checksum(forBinaryArtifactAt: AbsolutePath(file.path))
-        #elseif swift(>=5.6)
-        let sum = try package.workspace.checksum(forBinaryArtifactAt: AbsolutePath(file.path))
-        #else
-        let sum = package.workspace.checksum(forBinaryArtifactAt: AbsolutePath(file.path), diagnostics: package.diagnostics)
-        #endif
         let checksumFile = file.deletingPathExtension().appendingPathExtension("sha256")
         try Data(sum.utf8).write(to: checksumFile)
         return checksumFile
@@ -67,22 +59,12 @@ struct Zipper {
         // find the package that contains our target
         guard let packageRef = package.graph.packages.first(where: { $0.targets.contains(where: { $0.name == target }) }) else { return nil }
 
-        #if swift(>=5.6)
         guard
             let dependency = package.workspace.state.dependencies[packageRef.identity],
             case let .custom(version, _) = dependency.state
         else {
             return fallback.flatMap { "-" + $0 }
         }
-        #else
-        guard
-            let dependency = package.workspace.state.dependencies[forNameOrIdentity: packageRef.packageName],
-            case let .checkout(checkout) = dependency.state,
-            let version = checkout.version
-        else {
-            return fallback.flatMap { "-" + $0 }
-        }
-        #endif
 
         return "-" + version.description
     }
@@ -91,7 +73,6 @@ struct Zipper {
         try FileManager.default.removeItem(at: file)
     }
 
-    #if swift(>=5.7)
     private func checksum(forBinaryArtifactAt path: AbsolutePath) throws -> String {
         let fileSystem = localFileSystem
         let checksumAlgorithm = SHA256()
@@ -111,21 +92,4 @@ struct Zipper {
         let contents = try fileSystem.readFileContents(path)
         return checksumAlgorithm.hash(contents).hexadecimalRepresentation
     }
-    #endif
 }
-
-#if swift(>=5.6)
-// Intentionally left blank
-#elseif swift(>=5.5)
-private extension ResolvedPackage {
-    var packageName: String {
-        manifestName
-    }
-}
-#else
-private extension ResolvedPackage {
-    var packageName: String {
-        name
-    }
-}
-#endif

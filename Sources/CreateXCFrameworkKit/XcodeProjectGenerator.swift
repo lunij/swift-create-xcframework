@@ -10,11 +10,7 @@ struct XcodeProjectGenerator {
 
     var projectPath: AbsolutePath {
         let dir = AbsolutePath(package.projectBuildDirectory.path)
-        #if swift(>=5.7)
         return Xcodeproj.XcodeProject.makePath(outputDir: dir, projectName: package.manifest.displayName)
-        #else
-        return Xcodeproj.buildXcodeprojPath(outputDir: dir, projectName: package.manifest.displayName)
-        #endif
     }
 
     init(package: PackageInfo) {
@@ -57,7 +53,6 @@ struct XcodeProjectGenerator {
         try makeDirectories(path)
 
         // Generate the contents of project.xcodeproj (inside the .xcodeproj).
-        #if swift(>=5.6)
         let project = try pbxproj(
             xcodeprojPath: path,
             graph: package.graph,
@@ -70,20 +65,6 @@ struct XcodeProjectGenerator {
             fileSystem: localFileSystem,
             observabilityScope: package.observabilitySystem.topScope
         )
-        #else
-        let project = try pbxproj(
-            xcodeprojPath: path,
-            graph: package.graph,
-            extraDirs: [],
-            extraFiles: [],
-            options: XcodeprojOptions(
-                xcconfigOverrides: (package.overridesXcconfig?.path).flatMap { AbsolutePath($0) },
-                useLegacySchemeGenerator: true
-            ),
-            diagnostics: package.diagnostics
-        )
-        #endif
-
         return XcodeProject(path: path, project: project)
     }
 }
