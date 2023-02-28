@@ -1,7 +1,7 @@
 import ArgumentParser
 import PackageModel
 
-enum TargetPlatform: String, ExpressibleByArgument, CaseIterable {
+enum Platform: String, ExpressibleByArgument, CaseIterable {
     case ios
     case macos
     case maccatalyst

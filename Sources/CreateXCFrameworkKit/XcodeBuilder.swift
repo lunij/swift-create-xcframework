@@ -62,7 +62,7 @@ struct XcodeBuilder {
         let debugSymbolsPath: URL
     }
 
-    func build(targets: [String], sdk: TargetPlatform.SDK) throws -> [String: BuildResult] {
+    func build(targets: [String], sdk: Platform.SDK) throws -> [String: BuildResult] {
         for target in targets {
             let arguments = try createArchiveCommand(target: target, sdk: sdk)
             let process = TSCBasic.Process(arguments: arguments)
@@ -90,7 +90,7 @@ struct XcodeBuilder {
             }
     }
 
-    private func createArchiveCommand(target: String, sdk: TargetPlatform.SDK) throws -> [String] {
+    private func createArchiveCommand(target: String, sdk: Platform.SDK) throws -> [String] {
         var arguments = [
             "xcrun",
             "xcodebuild",
@@ -122,7 +122,7 @@ struct XcodeBuilder {
         return arguments
     }
 
-    private func frameworkPath(target: String, sdk: TargetPlatform.SDK) -> URL {
+    private func frameworkPath(target: String, sdk: Platform.SDK) -> URL {
         buildDirectory
             .appendingPathComponent(productName(target: target))
             .appendingPathComponent(sdk.archiveName)
@@ -131,7 +131,7 @@ struct XcodeBuilder {
             .absoluteURL
     }
 
-    private func debugSymbolsPath(target _: String, sdk: TargetPlatform.SDK) -> URL {
+    private func debugSymbolsPath(target _: String, sdk: Platform.SDK) -> URL {
         buildDirectory
             .appendingPathComponent(sdk.releaseFolder)
     }

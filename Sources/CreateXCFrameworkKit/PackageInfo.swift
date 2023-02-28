@@ -16,7 +16,7 @@ import TSCBasic
 struct PackageInfo {
     let rootDirectory: URL
     let buildDirectory: URL
-    let platforms: [TargetPlatform]
+    let platforms: [Platform]
     let productNames: [String]
 
     var projectBuildDirectory: URL {
@@ -267,15 +267,15 @@ private extension Manifest {
             }
     }
 
-    func filterPlatforms(to userSpecifiedPlatforms: [TargetPlatform]) -> [TargetPlatform] {
-        let supported = userSpecifiedPlatforms.nonEmpty ?? TargetPlatform.allCases.filter { $0 != .maccatalyst }
+    func filterPlatforms(to userSpecifiedPlatforms: [Platform]) -> [Platform] {
+        let supported = userSpecifiedPlatforms.nonEmpty ?? Platform.allCases.filter { $0 != .maccatalyst }
 
         guard let packagePlatforms = platforms.nonEmpty else {
             return supported
         }
 
         let target = packagePlatforms
-            .compactMap { platform -> [TargetPlatform]? in
+            .compactMap { platform -> [Platform]? in
                 supported.filter { $0.platformName == platform.platformName }
             }
             .flatMap { $0 }

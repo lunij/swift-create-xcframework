@@ -15,7 +15,7 @@ public struct Command: ParsableCommand {
         or newer, and so it is only supported by recent versions of Xcode and the *OS SDKs. Likewise,
         only Apple platforms are supported.
 
-        Supported platforms: \(TargetPlatform.allCases.map(\.rawValue).joined(separator: ", "))
+        Supported platforms: \(Platform.allCases.map(\.rawValue).joined(separator: ", "))
         """,
         version: "2.3.0"
     )

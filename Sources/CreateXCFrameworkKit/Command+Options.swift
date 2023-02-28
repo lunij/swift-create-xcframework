@@ -40,10 +40,10 @@ public extension Command {
             help: ArgumentHelp(
                 "A list of platforms you want to build for. Can be specified multiple times."
                     + " Default is to build for all platforms supported in your Package.swift, or all Apple platforms (except for maccatalyst platform) if omitted",
-                valueName: TargetPlatform.allCases.map(\.rawValue).joined(separator: "|")
+                valueName: Platform.allCases.map(\.rawValue).joined(separator: "|")
             )
         )
-        var platforms: [TargetPlatform] = []
+        var platforms: [Platform] = []
 
         @Option(help: "A list of products to build. Defaults to building all `.library` products")
         var products: [String] = []
