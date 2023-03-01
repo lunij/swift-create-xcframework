@@ -1,3 +1,4 @@
+import Basics
 import TSCBasic
 import Xcodeproj
 
@@ -63,7 +64,7 @@ struct XcodeProjectGenerator {
                 useLegacySchemeGenerator: true
             ),
             fileSystem: localFileSystem,
-            observabilityScope: package.observabilitySystem.topScope
+            observabilityScope: ObservabilitySystem.shared.topScope
         )
         return XcodeProject(path: path, project: project)
     }

@@ -44,10 +44,6 @@ struct PackageInfo {
         return rootDirectory.appendingPathComponent(path)
     }
 
-    let observabilitySystem = ObservabilitySystem { _, diagnostics in
-        logger.log("\(diagnostics.severity): \(diagnostics.message)")
-    }
-
     let options: Command.Options
     let graph: PackageGraph
     let manifest: Manifest
@@ -61,7 +57,7 @@ struct PackageInfo {
         let root = AbsolutePath(rootDirectory.path)
 
         workspace = try Workspace(forRootPackage: root)
-        graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
+        graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: ObservabilitySystem.shared.topScope)
 
         guard let manifest = graph.rootPackages.first?.manifest else {
             throw PackageValidationError.missingManifest
