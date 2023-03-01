@@ -19,7 +19,6 @@ final class CommandTests: XCTestCase {
         try Command.makeTestable().run()
         XCTAssertEqual(mockLogger.calls, [
             .log("debug: evaluating manifest for 'test_minimalmanifest' v. unknown "),
-            .log("debug: evaluating manifest for 'test_minimalmanifest' v. unknown "),
             .log("Cleaning...")
         ])
     }
@@ -29,7 +28,6 @@ final class CommandTests: XCTestCase {
         try Command.makeTestable("--list-products").run()
         XCTAssertEqual(mockLogger.calls, [
             .log("debug: evaluating manifest for 'test_listproducts' v. unknown "),
-            .log("debug: evaluating manifest for 'test_listproducts' v. unknown "),
             .log("Available FixturePackage products:\n    FixtureLibrary")
         ])
     }
@@ -38,7 +36,6 @@ final class CommandTests: XCTestCase {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--platforms", "macOS", "--products", "FixtureLibrary2").run()
         XCTAssertEqual(mockLogger.calls, [
-            .log("debug: evaluating manifest for 'test_filterproducts' v. unknown "),
             .log("debug: evaluating manifest for 'test_filterproducts' v. unknown ")
         ])
     }
@@ -51,13 +48,12 @@ final class CommandTests: XCTestCase {
         }
 
         let catchedError = try XCTUnwrap(error)
-        XCTAssertEqual("\(catchedError)", "fatalError")
+        XCTAssertEqual("\(catchedError)", "No manifest to create XCFrameworks for were found")
 
         XCTAssertEqual(mockLogger.calls, [
             .log("debug: evaluating manifest for 'test_manifestwitherrors' v. unknown "),
             .log("error: Source files for target FixtureTarget should be located under 'Sources/FixtureTarget', "
-                + "or a custom sources path can be set with the 'path' property in Package.swift"),
-            .log("debug: evaluating manifest for 'test_manifestwitherrors' v. unknown ")
+                + "or a custom sources path can be set with the 'path' property in Package.swift")
         ])
     }
 

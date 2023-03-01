@@ -51,7 +51,6 @@ struct PackageInfo {
     let options: Command.Options
     let graph: PackageGraph
     let manifest: Manifest
-    let toolchain: UserToolchain
     let workspace: Workspace
 
     init(options: Command.Options) throws {
@@ -61,10 +60,16 @@ struct PackageInfo {
 
         let root = AbsolutePath(rootDirectory.path)
 
-        toolchain = try UserToolchain(destination: try .hostDestination())
-        workspace = try Workspace(root: root, toolchain: toolchain)
-        graph = try PackageGraph(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
-        manifest = try .createManifest(root: root, workspace: workspace, observabilitySystem: observabilitySystem)
+        // FIXME: `loadPackageGraph` does not throw properly because of the observability system
+
+        workspace = try Workspace(forRootPackage: root)
+        graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
+
+        guard let manifest = graph.rootPackages.first?.manifest else {
+            throw PackageValidationError.missingManifest
+        }
+        self.manifest = manifest
+
         platforms = manifest.filterPlatforms(to: options.platforms)
         productNames = manifest.filterProductNames(to: options.products)
 
@@ -149,6 +154,7 @@ enum PackageValidationError: Error, CustomStringConvertible {
     case containsBinaryTargets([String])
     case containsSystemModules([String])
     case containsConditionalDependencies([String])
+    case missingManifest
     case missingProducts
 
     var description: String {
@@ -162,35 +168,11 @@ enum PackageValidationError: Error, CustomStringConvertible {
         case let .containsConditionalDependencies(targets):
             return "Xcode project generation does not support conditional target dependencies, so the generated project may not build successfully.\n"
                 + "Targets with conditional dependencies: \(targets.joined(separator: ", "))"
+        case .missingManifest:
+            return "No manifest to create XCFrameworks for were found"
         case .missingProducts:
             return "No products to create XCFrameworks for were found"
         }
-    }
-}
-
-private extension Manifest {
-    static func createManifest(root: AbsolutePath, workspace: Workspace, observabilitySystem: ObservabilitySystem) throws -> Manifest {
-        let scope = observabilitySystem.topScope
-        return try tsc_await {
-            workspace.loadRootManifest(
-                at: root,
-                observabilityScope: scope,
-                completion: $0
-            )
-        }
-    }
-}
-
-private extension PackageGraph {
-    init(root: AbsolutePath, workspace: Workspace, observabilitySystem: ObservabilitySystem) throws {
-        self = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
-    }
-}
-
-private extension Workspace {
-    convenience init(root: AbsolutePath, toolchain: UserToolchain) throws {
-        let loader = ManifestLoader(toolchain: toolchain)
-        try self.init(forRootPackage: root, customManifestLoader: loader)
     }
 }
 
