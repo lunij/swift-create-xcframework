@@ -55,7 +55,11 @@ public struct Command: ParsableCommand {
     }
 
     private func createXcodeProject(from package: PackageInfo) throws -> XcodeProject {
-        let generator = XcodeProjectGenerator(package: package)
+        let generator = XcodeProjectGenerator(
+            projectName: package.name,
+            config: package.config,
+            packageGraph: package.graph
+        )
         try generator.writeDistributionXcconfig()
         let xcodeProject = try generator.generate()
 
@@ -73,7 +77,7 @@ public struct Command: ParsableCommand {
     }
 
     private func createXCFrameworks(from package: PackageInfo, xcodeProject: XcodeProject) throws -> [(String, URL)] {
-        let builder = XcodeBuilder(project: xcodeProject, package: package, options: options)
+        let builder = XcodeBuilder(project: xcodeProject, config: package.config)
 
         if options.clean {
             try builder.clean()

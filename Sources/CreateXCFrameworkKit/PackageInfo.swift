@@ -15,8 +15,13 @@ struct PackageInfo {
     let platforms: [Platform]
     let productNames: [String]
     let graph: PackageGraph
-    let manifest: Manifest
     let workspace: Workspace
+
+    private let manifest: Manifest
+
+    var name: String {
+        manifest.displayName
+    }
 
     init(config: Config) throws {
         self.config = config

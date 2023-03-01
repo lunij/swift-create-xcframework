@@ -6,26 +6,24 @@ import Xcodeproj
 
 struct XcodeBuilder {
     let project: XcodeProject
-    let package: PackageInfo
-    let options: Command.Options
+    let config: Config
 
     private let fileManager: FileManager
 
     var buildDirectory: URL {
-        package.config.projectBuildDirectory
+        config
+            .projectBuildDirectory
             .appendingPathComponent("build")
             .absoluteURL
     }
 
     init(
         project: XcodeProject,
-        package: PackageInfo,
-        options: Command.Options,
+        config: Config,
         fileManager: FileManager = .default
     ) {
         self.project = project
-        self.package = package
-        self.options = options
+        self.config = config
         self.fileManager = fileManager
     }
 
@@ -92,7 +90,7 @@ struct XcodeBuilder {
             "xcrun",
             "xcodebuild",
             "-project", project.path.pathString,
-            "-configuration", options.configuration.xcodeConfigurationName,
+            "-configuration", config.options.configuration.xcodeConfigurationName,
             "-archivePath", buildDirectory.appendingPathComponent(productName(target: target)).appendingPathComponent(sdk.archiveName).path,
             "-destination", sdk.destination,
             "BUILD_DIR=\(buildDirectory.path)",
@@ -105,11 +103,11 @@ struct XcodeBuilder {
             }
         }
 
-        if options.stackEvolution {
+        if config.options.stackEvolution {
             arguments.append("BUILD_LIBRARY_FOR_DISTRIBUTION=YES")
         }
 
-        options.xcSetting.forEach { setting in
+        config.options.xcSetting.forEach { setting in
             arguments.append("\(setting.name)=\(setting.value)")
         }
 
@@ -239,7 +237,7 @@ struct XcodeBuilder {
         arguments += try buildResults.flatMap { result -> [String] in
             var args = ["-framework", result.frameworkPath.absoluteURL.path]
 
-            if self.package.config.options.debugSymbols {
+            if self.config.options.debugSymbols {
                 let symbolFiles = try self.debugSymbolFiles(target: result.target, path: result.debugSymbolsPath)
                 for file in symbolFiles where fileManager.fileExists(atPath: file.absoluteURL.path) {
                     args += ["-debug-symbols", file.absoluteURL.path]
@@ -255,7 +253,7 @@ struct XcodeBuilder {
     }
 
     private func xcframeworkPath(target: String) -> URL {
-        URL(fileURLWithPath: options.output)
+        URL(fileURLWithPath: config.options.output)
             .appendingPathComponent("\(productName(target: target)).xcframework")
     }
 

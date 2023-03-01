@@ -1,4 +1,5 @@
 import Basics
+import PackageGraph
 import TSCBasic
 import Xcodeproj
 
@@ -7,28 +8,32 @@ struct XcodeProjectGenerator {
         static let `extension` = "xcodeproj"
     }
 
-    let package: PackageInfo
+    private let config: Config
+    private let projectName: String
+    private let packageGraph: PackageGraph
 
     var projectPath: AbsolutePath {
-        let dir = AbsolutePath(package.config.projectBuildDirectory.path)
-        return Xcodeproj.XcodeProject.makePath(outputDir: dir, projectName: package.manifest.displayName)
+        let dir = AbsolutePath(config.projectBuildDirectory.path)
+        return Xcodeproj.XcodeProject.makePath(outputDir: dir, projectName: projectName)
     }
 
-    init(package: PackageInfo) {
-        self.package = package
+    init(projectName: String, config: Config, packageGraph: PackageGraph) {
+        self.projectName = projectName
+        self.config = config
+        self.packageGraph = packageGraph
     }
 
     /// Writes out the Xcconfig file
     func writeDistributionXcconfig() throws {
-        guard package.config.hasDistributionBuildXcconfig else {
+        guard config.hasDistributionBuildXcconfig else {
             return
         }
 
         try makeDirectories(projectPath)
 
-        let path = AbsolutePath(package.config.distributionBuildXcconfig.path)
+        let path = AbsolutePath(config.distributionBuildXcconfig.path)
         try path.open { stream in
-            if let absolutePath = self.package.config.xcconfigOverride?.path {
+            if let absolutePath = self.config.xcconfigOverride?.path {
                 stream(
                     """
                     #include "\(AbsolutePath(absolutePath).relative(to: AbsolutePath(path.dirname)).pathString)"
@@ -56,11 +61,11 @@ struct XcodeProjectGenerator {
         // Generate the contents of project.xcodeproj (inside the .xcodeproj).
         let project = try pbxproj(
             xcodeprojPath: path,
-            graph: package.graph,
+            graph: packageGraph,
             extraDirs: [],
             extraFiles: [],
             options: XcodeprojOptions(
-                xcconfigOverrides: (package.config.xcconfigOverride?.path).flatMap { AbsolutePath($0) },
+                xcconfigOverrides: (config.xcconfigOverride?.path).flatMap { AbsolutePath($0) },
                 useLegacySchemeGenerator: true
             ),
             fileSystem: localFileSystem,
