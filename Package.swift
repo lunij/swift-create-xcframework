@@ -18,6 +18,11 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "CreateXCFramework",
+            dependencies: ["CreateXCFrameworkKit"],
+            plugins: .default
+        ),
+        .target(
+            name: "CreateXCFrameworkKit",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SwiftPM-auto", package: "swift-package-manager"),
@@ -26,8 +31,8 @@ let package = Package(
             plugins: .default
         ),
         .testTarget(
-            name: "CreateXCFrameworkTests",
-            dependencies: ["CreateXCFramework"],
+            name: "CreateXCFrameworkKitTests",
+            dependencies: ["CreateXCFrameworkKit"],
             resources: [
                 .copy("Fixtures")
             ],

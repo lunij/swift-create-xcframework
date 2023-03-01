@@ -16,13 +16,13 @@ final class FixtureManager {
     private var fileManager: FileManager { Self.fileManager }
     private var testDirectoryURL: URL { Self.testsDirectoryURL }
 
-    func createFixture(named name: String, testName: String = #function) throws -> Fixture {
+    func setUpFixture(named name: String, testName: String = #function) throws {
         guard let resourceURL = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "Fixtures") else {
             throw FixtureError.notFound(name)
         }
         let testDirectoryURL = try createTestDirectory(named: testName)
         try copyContent(from: resourceURL, into: testDirectoryURL)
-        return Fixture(name: name, directoryURL: testDirectoryURL)
+        fileManager.changeCurrentDirectoryPath(testDirectoryURL.path)
     }
 
     private func createTestDirectory(named testName: String) throws -> URL {
@@ -39,11 +39,6 @@ final class FixtureManager {
             try fileManager.copyItem(at: url, to: targetURL)
         }
     }
-}
-
-struct Fixture {
-    let name: String
-    let directoryURL: URL
 }
 
 enum FixtureError: Error {

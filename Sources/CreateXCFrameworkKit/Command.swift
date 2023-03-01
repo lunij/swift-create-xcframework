@@ -6,8 +6,8 @@ import TSCBasic
 import Workspace
 import Xcodeproj
 
-struct Command: ParsableCommand {
-    static var configuration = CommandConfiguration(
+public struct Command: ParsableCommand {
+    public static var configuration = CommandConfiguration(
         abstract: "Creates an XCFramework out of a Swift Package using xcodebuild",
         discussion:
         """
@@ -21,30 +21,32 @@ struct Command: ParsableCommand {
     )
 
     @OptionGroup()
-    var options: Options
+    public var options: Options
 
-    func run() throws {
+    public init() {}
+
+    public func run() throws {
         let package = try PackageInfo(options: options)
         try package.validate()
 
-        let xcframeworkFiles = try createXCFrameworks(from: package)
+//        let xcframeworkFiles = try createXCFrameworks(from: package)
 
-        if options.zip {
-            let zipper = Zipper(package: package)
-            let zipped = try xcframeworkFiles.flatMap { pair -> [URL] in
-                let zip = try zipper.zip(target: pair.0, version: self.options.zipVersion, file: pair.1)
-                let checksum = try zipper.checksum(file: zip)
-                try zipper.clean(file: pair.1)
-                return [zip, checksum]
-            }
-
-            if options.githubAction {
-                let zips = zipped.map(\.path).joined(separator: "\n")
-                let data = Data(zips.utf8)
-                let url = URL(fileURLWithPath: options.buildPath).appendingPathComponent("xcframework-zipfile.url")
-                try data.write(to: url)
-            }
-        }
+//        if options.zip {
+//            let zipper = Zipper(package: package)
+//            let zipped = try xcframeworkFiles.flatMap { pair -> [URL] in
+//                let zip = try zipper.zip(target: pair.0, version: self.options.zipVersion, file: pair.1)
+//                let checksum = try zipper.checksum(file: zip)
+//                try zipper.clean(file: pair.1)
+//                return [zip, checksum]
+//            }
+//
+//            if options.githubAction {
+//                let zips = zipped.map(\.path).joined(separator: "\n")
+//                let data = Data(zips.utf8)
+//                let url = URL(fileURLWithPath: options.buildPath).appendingPathComponent("xcframework-zipfile.url")
+//                try data.write(to: url)
+//            }
+//        }
     }
 
     private func createXCFrameworks(from package: PackageInfo) throws -> [(String, URL)] {
@@ -106,7 +108,7 @@ private extension PackageInfo {
             if error.isFatal {
                 throw error
             }
-            print(error)
+            logger.log("\(error)")
         }
     }
 }

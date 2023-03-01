@@ -1,1 +1,3 @@
+import CreateXCFrameworkKit
+
 Command.main()

@@ -1,7 +1,7 @@
 import ArgumentParser
 import PackageModel
 
-extension Command {
+public extension Command {
     struct Options: ParsableArguments {
         // MARK: - Package Loading
 
@@ -74,6 +74,8 @@ extension Command {
 
         @Argument(help: "An optional list of products (or targets) to build. Defaults to building all `.library` products")
         var products: [String] = []
+
+        public init() {}
     }
 }
 

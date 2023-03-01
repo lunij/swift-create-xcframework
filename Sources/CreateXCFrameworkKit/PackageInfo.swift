@@ -47,7 +47,7 @@ struct PackageInfo {
 
     #if swift(>=5.6)
     let observabilitySystem = ObservabilitySystem { _, diagnostics in
-        print("\(diagnostics.severity): \(diagnostics.message)")
+        logger.log("\(diagnostics.severity): \(diagnostics.message)")
     }
     #else
     let diagnostics = DiagnosticsEngine()
@@ -141,7 +141,7 @@ struct PackageInfo {
         let xcodeTargetNames = project.frameworkTargets.map(\.name)
         let nonRootPackageTargets = xcodeTargetNames.filter { allLibraryProductNames.contains($0) == false }
 
-        print(
+        logger.log(
             """
             \nAvailable \(manifest.displayName) products:
                 \(allLibraryProductNames.sorted().joined(separator: "\n    "))
