@@ -8,9 +8,9 @@ import TSCBasic
 import Workspace
 
 struct Zipper {
-    let package: PackageInfo
+    let package: Package
 
-    init(package: PackageInfo) {
+    init(package: Package) {
         self.package = package
     }
 

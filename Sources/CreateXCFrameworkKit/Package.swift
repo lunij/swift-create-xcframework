@@ -10,7 +10,7 @@ import TSCBasic
 import Workspace
 import Xcodeproj
 
-struct PackageInfo {
+struct Package {
     let config: Config
     let platforms: [Platform]
     let productNames: [String]

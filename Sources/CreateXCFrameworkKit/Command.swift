@@ -27,7 +27,7 @@ public struct Command: ParsableCommand {
 
     public func run() throws {
         let config = Config(options: options)
-        let package = try PackageInfo(config: config)
+        let package = try Package(config: config)
 
         if options.listProducts {
             return package.listProducts()
@@ -54,7 +54,7 @@ public struct Command: ParsableCommand {
         }
     }
 
-    private func createXcodeProject(from package: PackageInfo) throws -> XcodeProject {
+    private func createXcodeProject(from package: Package) throws -> XcodeProject {
         let generator = XcodeProjectGenerator(
             projectName: package.name,
             config: package.config,
@@ -76,7 +76,7 @@ public struct Command: ParsableCommand {
         return xcodeProject
     }
 
-    private func createXCFrameworks(from package: PackageInfo, xcodeProject: XcodeProject) throws -> [(String, URL)] {
+    private func createXCFrameworks(from package: Package, xcodeProject: XcodeProject) throws -> [(String, URL)] {
         let builder = XcodeBuilder(project: xcodeProject, config: package.config)
 
         if options.clean {
