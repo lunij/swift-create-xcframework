@@ -11,50 +11,17 @@ import Workspace
 import Xcodeproj
 
 struct PackageInfo {
-    let rootDirectory: URL
-    let buildDirectory: URL
+    let config: Config
     let platforms: [Platform]
     let productNames: [String]
-
-    var projectBuildDirectory: URL {
-        buildDirectory
-            .appendingPathComponent("swift-create-xcframework")
-            .absoluteURL
-    }
-
-    var hasDistributionBuildXcconfig: Bool {
-        overridesXcconfig != nil || options.stackEvolution == false
-    }
-
-    var distributionBuildXcconfig: URL {
-        projectBuildDirectory
-            .appendingPathComponent("Distribution.xcconfig")
-            .absoluteURL
-    }
-
-    var overridesXcconfig: URL? {
-        guard let path = options.xcconfig else { return nil }
-
-        if path.hasPrefix("/") {
-            return URL(fileURLWithPath: path)
-        } else if path.hasPrefix("./") {
-            return rootDirectory.appendingPathComponent(String(path[path.index(path.startIndex, offsetBy: 2)...]))
-        }
-
-        return rootDirectory.appendingPathComponent(path)
-    }
-
-    let options: Command.Options
     let graph: PackageGraph
     let manifest: Manifest
     let workspace: Workspace
 
-    init(options: Command.Options) throws {
-        self.options = options
-        rootDirectory = URL(fileURLWithPath: options.packagePath, isDirectory: true).absoluteURL
-        buildDirectory = rootDirectory.appendingPathComponent(options.buildPath, isDirectory: true).absoluteURL
+    init(config: Config) throws {
+        self.config = config
 
-        let root = AbsolutePath(rootDirectory.path)
+        let root = AbsolutePath(config.packageDirectory.path)
 
         workspace = try Workspace(forRootPackage: root)
         graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: ObservabilitySystem.shared.topScope)
@@ -64,8 +31,8 @@ struct PackageInfo {
         }
         self.manifest = manifest
 
-        platforms = manifest.filterPlatforms(to: options.platforms)
-        productNames = manifest.filterProductNames(to: options.products)
+        platforms = manifest.filterPlatforms(to: config.options.platforms)
+        productNames = manifest.filterProductNames(to: config.options.products)
 
         try validate()
     }
@@ -101,12 +68,6 @@ struct PackageInfo {
     func listProducts() {
         let productNames = manifest.libraryProductNames.sorted()
         logger.log("Available \(manifest.displayName) products:\n    \(productNames.joined(separator: "\n    "))")
-    }
-
-    // MARK: - Helpers
-
-    private var absoluteRootDirectory: AbsolutePath {
-        AbsolutePath(rootDirectory.path)
     }
 }
 

@@ -10,7 +10,7 @@ struct XcodeProjectGenerator {
     let package: PackageInfo
 
     var projectPath: AbsolutePath {
-        let dir = AbsolutePath(package.projectBuildDirectory.path)
+        let dir = AbsolutePath(package.config.projectBuildDirectory.path)
         return Xcodeproj.XcodeProject.makePath(outputDir: dir, projectName: package.manifest.displayName)
     }
 
@@ -20,15 +20,15 @@ struct XcodeProjectGenerator {
 
     /// Writes out the Xcconfig file
     func writeDistributionXcconfig() throws {
-        guard package.hasDistributionBuildXcconfig else {
+        guard package.config.hasDistributionBuildXcconfig else {
             return
         }
 
         try makeDirectories(projectPath)
 
-        let path = AbsolutePath(package.distributionBuildXcconfig.path)
+        let path = AbsolutePath(package.config.distributionBuildXcconfig.path)
         try path.open { stream in
-            if let absolutePath = self.package.overridesXcconfig?.path {
+            if let absolutePath = self.package.config.xcconfigOverride?.path {
                 stream(
                     """
                     #include "\(AbsolutePath(absolutePath).relative(to: AbsolutePath(path.dirname)).pathString)"
@@ -60,7 +60,7 @@ struct XcodeProjectGenerator {
             extraDirs: [],
             extraFiles: [],
             options: XcodeprojOptions(
-                xcconfigOverrides: (package.overridesXcconfig?.path).flatMap { AbsolutePath($0) },
+                xcconfigOverrides: (package.config.xcconfigOverride?.path).flatMap { AbsolutePath($0) },
                 useLegacySchemeGenerator: true
             ),
             fileSystem: localFileSystem,

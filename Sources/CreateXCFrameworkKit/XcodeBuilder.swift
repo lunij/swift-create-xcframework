@@ -12,7 +12,7 @@ struct XcodeBuilder {
     private let fileManager: FileManager
 
     var buildDirectory: URL {
-        package.projectBuildDirectory
+        package.config.projectBuildDirectory
             .appendingPathComponent("build")
             .absoluteURL
     }
@@ -239,7 +239,7 @@ struct XcodeBuilder {
         arguments += try buildResults.flatMap { result -> [String] in
             var args = ["-framework", result.frameworkPath.absoluteURL.path]
 
-            if self.package.options.debugSymbols {
+            if self.package.config.options.debugSymbols {
                 let symbolFiles = try self.debugSymbolFiles(target: result.target, path: result.debugSymbolsPath)
                 for file in symbolFiles where fileManager.fileExists(atPath: file.absoluteURL.path) {
                     args += ["-debug-symbols", file.absoluteURL.path]

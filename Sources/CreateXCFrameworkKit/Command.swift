@@ -26,7 +26,8 @@ public struct Command: ParsableCommand {
     public init() {}
 
     public func run() throws {
-        let package = try PackageInfo(options: options)
+        let config = Config(options: options)
+        let package = try PackageInfo(config: config)
 
         if options.listProducts {
             return package.listProducts()
@@ -63,7 +64,7 @@ public struct Command: ParsableCommand {
         if options.stackEvolution == false {
             xcodeProject.enableDistribution(
                 targets: package.productNames,
-                xcconfig: AbsolutePath(package.distributionBuildXcconfig.path).relative(to: AbsolutePath(package.rootDirectory.path))
+                xcconfig: AbsolutePath(package.config.distributionBuildXcconfig.path).relative(to: AbsolutePath(package.config.packageDirectory.path))
             )
         }
 
