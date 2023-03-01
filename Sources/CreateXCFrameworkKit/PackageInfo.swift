@@ -60,8 +60,6 @@ struct PackageInfo {
 
         let root = AbsolutePath(rootDirectory.path)
 
-        // FIXME: `loadPackageGraph` does not throw properly because of the observability system
-
         workspace = try Workspace(forRootPackage: root)
         graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
 

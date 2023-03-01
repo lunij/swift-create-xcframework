@@ -48,12 +48,11 @@ final class CommandTests: XCTestCase {
         }
 
         let catchedError = try XCTUnwrap(error)
-        XCTAssertEqual("\(catchedError)", "No manifest to create XCFrameworks for were found")
+        XCTAssertEqual("\(catchedError)", "Source files for target FixtureTarget should be located under 'Sources/FixtureTarget',"
+            + " or a custom sources path can be set with the 'path' property in Package.swift")
 
         XCTAssertEqual(mockLogger.calls, [
-            .log("debug: evaluating manifest for 'test_manifestwitherrors' v. unknown "),
-            .log("error: Source files for target FixtureTarget should be located under 'Sources/FixtureTarget', "
-                + "or a custom sources path can be set with the 'path' property in Package.swift")
+            .log("debug: evaluating manifest for 'test_manifestwitherrors' v. unknown ")
         ])
     }
 

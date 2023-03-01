@@ -12,7 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", exact: "1.0.3"),
-        .package(url: "https://github.com/apple/swift-package-manager.git", branch: "release/5.7"),
+        .package(url: "https://github.com/lunij/swift-package-manager.git", branch: "marc/5.7/error-propagation"),
         .package(url: "https://github.com/apple/swift-tools-support-core.git", branch: "release/5.7")
     ] + .plugins,
     targets: [
