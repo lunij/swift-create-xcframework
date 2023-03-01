@@ -1,14 +1,8 @@
-import ArgumentParser
 import Basics
-import Build
-import Foundation
 import PackageGraph
-import PackageLoading
 import PackageModel
-import SPMBuildCore
 import TSCBasic
 import Workspace
-import Xcodeproj
 
 struct Package {
     let config: Config

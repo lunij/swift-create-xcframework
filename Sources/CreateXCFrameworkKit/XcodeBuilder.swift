@@ -1,8 +1,6 @@
-import Build
 import Foundation
 import PackageModel
 import TSCBasic
-import Xcodeproj
 
 struct XcodeBuilder {
     let project: XcodeProject

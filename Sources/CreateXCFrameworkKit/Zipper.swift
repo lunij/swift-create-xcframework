@@ -1,11 +1,6 @@
-#if canImport(Basics)
 import Basics
-#endif
 import Foundation
-import PackageGraph
-import PackageModel
 import TSCBasic
-import Workspace
 
 struct Zipper {
     let package: Package

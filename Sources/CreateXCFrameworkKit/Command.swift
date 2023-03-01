@@ -1,10 +1,6 @@
 import ArgumentParser
 import Foundation
-import PackageLoading
-import PackageModel
 import TSCBasic
-import Workspace
-import Xcodeproj
 
 public struct Command: ParsableCommand {
     public static var configuration = CommandConfiguration(
