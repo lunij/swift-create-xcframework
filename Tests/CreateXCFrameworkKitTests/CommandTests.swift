@@ -14,21 +14,30 @@ final class CommandTests: XCTestCase {
         CreateXCFrameworkKit.logger = mockLogger
     }
 
-    func test_minimalManifest() throws {
-        try fixtureManager.setUpFixture(named: "MinimalManifest")
+    func test_manifestWithOneProduct() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithOneProduct")
         try Command.makeTestable().run()
         XCTAssertEqual(mockLogger.calls, [
-            .log("debug: evaluating manifest for 'test_minimalmanifest' v. unknown "),
+            .log("debug: evaluating manifest for 'test_manifestwithoneproduct' v. unknown "),
+            .log("Cleaning...")
+        ])
+    }
+
+    func test_manifestWithTwoProducts() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
+        try Command.makeTestable().run()
+        XCTAssertEqual(mockLogger.calls, [
+            .log("debug: evaluating manifest for 'test_manifestwithtwoproducts' v. unknown "),
             .log("Cleaning...")
         ])
     }
 
     func test_listProducts() throws {
-        try fixtureManager.setUpFixture(named: "MinimalManifest")
+        try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--list-products").run()
         XCTAssertEqual(mockLogger.calls, [
             .log("debug: evaluating manifest for 'test_listproducts' v. unknown "),
-            .log("Available FixturePackage products:\n    FixtureLibrary")
+            .log("Available FixturePackage products:\n    FixtureLibrary1\n    FixtureLibrary2")
         ])
     }
 
