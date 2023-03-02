@@ -37,8 +37,6 @@ struct XcodeBuilder {
         try process.launch()
         let result = try process.waitUntilExit()
 
-        logger.log("Cleaning...")
-
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
             throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
@@ -50,6 +48,8 @@ struct XcodeBuilder {
     }
 
     func build(target: String, sdk: Platform.SDK) throws -> Framework {
+        logger.log("Compiling \(target) for \(sdk.destination)")
+
         let arguments = try createArchiveCommand(target: target, sdk: sdk)
         let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
@@ -223,6 +223,8 @@ struct XcodeBuilder {
     }
 
     private func createXCFrameworkCommand(outputURL: URL, frameworks: [Framework]) throws -> [String] {
+        logger.log("Creating \(outputURL.path)")
+
         var arguments = [
             "xcrun",
             "xcodebuild",

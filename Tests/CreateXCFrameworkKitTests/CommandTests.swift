@@ -16,21 +16,23 @@ final class CommandTests: XCTestCase {
 
     func test_manifestWithOneProduct() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithOneProduct")
-        try Command.makeTestable().run()
-        XCTAssertEqual(mockLogger.calls, [
+        try Command.makeTestable("--platforms", "macOS").run()
+        XCTAssertEqual(mockLogger.calls[0 ... 3], [
             .log("debug: evaluating manifest for 'test_manifestwithoneproduct' v. unknown "),
-            .log("Generating Xcode project..."),
-            .log("Cleaning...")
+            .log("Generating Xcode project"),
+            .log("Compiling FixtureTarget for generic/platform=macOS,name=Any Mac"),
+            .log("Command line invocation:")
         ])
     }
 
     func test_manifestWithTwoProducts() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
-        try Command.makeTestable().run()
-        XCTAssertEqual(mockLogger.calls, [
+        try Command.makeTestable("--platforms", "macOS").run()
+        XCTAssertEqual(mockLogger.calls[0 ... 3], [
             .log("debug: evaluating manifest for 'test_manifestwithtwoproducts' v. unknown "),
-            .log("Generating Xcode project..."),
-            .log("Cleaning...")
+            .log("Generating Xcode project"),
+            .log("Compiling FixtureTarget1 for generic/platform=macOS,name=Any Mac"),
+            .log("Command line invocation:")
         ])
     }
 
@@ -46,8 +48,11 @@ final class CommandTests: XCTestCase {
     func test_filterProducts() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--platforms", "macOS", "--products", "FixtureLibrary2").run()
-        XCTAssertEqual(mockLogger.calls, [
-            .log("debug: evaluating manifest for 'test_filterproducts' v. unknown ")
+        XCTAssertEqual(mockLogger.calls[0 ... 3], [
+            .log("debug: evaluating manifest for \'test_filterproducts\' v. unknown "),
+            .log("Generating Xcode project"),
+            .log("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
+            .log("Command line invocation:")
         ])
     }
 
@@ -75,7 +80,7 @@ final class CommandTests: XCTestCase {
         }
 
         let catchedError = try XCTUnwrap(error)
-        XCTAssertEqual("\(catchedError)", "Package validation failed:\nNo products to create XCFrameworks for were found")
+        XCTAssertEqual("\(catchedError)", "Package validation failed:\nNo library products to create XCFrameworks for were found")
     }
 
     func test_manifestWithBinaryTargets() throws {

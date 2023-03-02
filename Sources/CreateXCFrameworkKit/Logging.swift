@@ -1,3 +1,5 @@
+import struct Foundation.CharacterSet
+
 public var logger: Logging = Logger()
 
 public protocol Logging {
@@ -11,7 +13,9 @@ struct Logger: Logging {
 }
 
 extension String {
-    func log() {
-        logger.log(self)
+    func log(separatedBy separator: CharacterSet = .newlines) {
+        for string in components(separatedBy: separator) {
+            logger.log(string)
+        }
     }
 }

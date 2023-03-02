@@ -51,7 +51,7 @@ public struct Command: ParsableCommand {
     }
 
     private func createXcodeProject(from package: Package) throws -> XcodeProject {
-        logger.log("Generating Xcode project...")
+        logger.log("Generating Xcode project")
 
         let generator = XcodeProjectGenerator(
             projectName: package.name,
@@ -64,7 +64,7 @@ public struct Command: ParsableCommand {
         // have build errors, so we remove it from targets we're not building
         if options.stackEvolution == false {
             xcodeProject.enableDistribution(
-                targets: package.productNames,
+                targets: package.filteredLibraryProducts.flatMap(\.targets),
                 xcconfig: AbsolutePath(package.config.distributionBuildXcconfig.path).relative(to: AbsolutePath(package.config.packageDirectory.path))
             )
         }
@@ -80,14 +80,13 @@ public struct Command: ParsableCommand {
             try builder.clean()
         }
 
-        let targets = package.productNames // FIXME: products need to be mapped to its targets
-
-        let xcframeworks = try targets.map { target in
-            let frameworks = try builder.createFrameworks(from: target, sdks: package.platforms.flatMap(\.sdks))
-            return try builder.createXCFramework(from: frameworks)
-        }
-
-        return xcframeworks
+        return try package
+            .filteredLibraryProducts
+            .flatMap(\.targets)
+            .map { target in
+                let frameworks = try builder.createFrameworks(from: target, sdks: package.platforms.flatMap(\.sdks))
+                return try builder.createXCFramework(from: frameworks)
+            }
     }
 }
 

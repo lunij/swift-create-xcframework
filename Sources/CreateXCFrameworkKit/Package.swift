@@ -7,7 +7,6 @@ import Workspace
 struct Package {
     let config: Config
     let platforms: [Platform]
-    let productNames: [String]
     let graph: PackageGraph
     let workspace: Workspace
 
@@ -15,6 +14,15 @@ struct Package {
 
     var name: String {
         manifest.displayName
+    }
+
+    var filteredLibraryProducts: [ProductDescription] {
+        guard let products = config.options.products.nonEmpty else {
+            return manifest.libraryProducts
+        }
+        return manifest.libraryProducts.filter { product in
+            products.contains(product.name)
+        }
     }
 
     init(config: Config) throws {
@@ -31,7 +39,6 @@ struct Package {
         self.manifest = manifest
 
         platforms = manifest.filterPlatforms(to: config.options.platforms)
-        productNames = manifest.filterProductNames(to: config.options.products)
 
         try validate()
     }
@@ -54,9 +61,9 @@ struct Package {
             errors.append(.containsConditionalDependencies(conditionalDependencies.map(\.name)))
         }
 
-        let productNames = manifest.libraryProductNames
-        if productNames.isEmpty {
-            errors.append(.missingProducts)
+        let libraryProducts = manifest.libraryProducts
+        if libraryProducts.isEmpty {
+            errors.append(.missingLibraryProducts)
         }
 
         if errors.isNotEmpty {
@@ -65,7 +72,7 @@ struct Package {
     }
 
     func listProducts() {
-        let productNames = manifest.libraryProductNames.sorted()
+        let productNames = manifest.libraryProducts.map(\.name).sorted()
         logger.log("Available \(manifest.displayName) products:\n    \(productNames.joined(separator: "\n    "))")
     }
 }
@@ -109,7 +116,7 @@ enum PackageValidationError: Error, CustomStringConvertible {
     case containsSystemModules([String])
     case containsConditionalDependencies([String])
     case missingManifest
-    case missingProducts
+    case missingLibraryProducts
 
     var description: String {
         switch self {
@@ -124,8 +131,8 @@ enum PackageValidationError: Error, CustomStringConvertible {
                 + "Targets with conditional dependencies: \(targets.joined(separator: ", "))"
         case .missingManifest:
             return "No manifest to create XCFrameworks for were found"
-        case .missingProducts:
-            return "No products to create XCFrameworks for were found"
+        case .missingLibraryProducts:
+            return "No library products to create XCFrameworks for were found"
         }
     }
 }
@@ -140,12 +147,10 @@ private extension ProductType {
 }
 
 private extension Manifest {
-    var libraryProductNames: [String] {
-        products
-            .compactMap { product in
-                guard product.type.isLibrary else { return nil }
-                return product.name
-            }
+    var libraryProducts: [ProductDescription] {
+        products.compactMap { product in
+            product.type.isLibrary ? product : nil
+        }
     }
 
     func filterPlatforms(to userSpecifiedPlatforms: [Platform]) -> [Platform] {
@@ -162,11 +167,5 @@ private extension Manifest {
             .flatMap { $0 }
 
         return target
-    }
-
-    func filterProductNames(to userSpecifiedProductNames: [String]) -> [String] {
-        libraryProductNames.filter { productName in
-            userSpecifiedProductNames.contains(productName)
-        }
     }
 }
