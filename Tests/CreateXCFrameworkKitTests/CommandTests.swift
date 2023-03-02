@@ -19,6 +19,7 @@ final class CommandTests: XCTestCase {
         try Command.makeTestable().run()
         XCTAssertEqual(mockLogger.calls, [
             .log("debug: evaluating manifest for 'test_manifestwithoneproduct' v. unknown "),
+            .log("Generating Xcode project..."),
             .log("Cleaning...")
         ])
     }
@@ -28,6 +29,7 @@ final class CommandTests: XCTestCase {
         try Command.makeTestable().run()
         XCTAssertEqual(mockLogger.calls, [
             .log("debug: evaluating manifest for 'test_manifestwithtwoproducts' v. unknown "),
+            .log("Generating Xcode project..."),
             .log("Cleaning...")
         ])
     }
