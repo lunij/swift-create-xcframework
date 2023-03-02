@@ -56,7 +56,6 @@ public struct Command: ParsableCommand {
             config: package.config,
             packageGraph: package.graph
         )
-        try generator.writeDistributionXcconfig()
         let xcodeProject = try generator.generate()
 
         // we've applied the xcconfig to everything, but some dependencies (*cough* swift-nio)
@@ -68,7 +67,7 @@ public struct Command: ParsableCommand {
             )
         }
 
-        try xcodeProject.save(to: generator.projectPath)
+        try xcodeProject.save()
         return xcodeProject
     }
 

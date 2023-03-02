@@ -37,7 +37,7 @@ struct XcodeProject {
         }
     }
 
-    func save(to path: AbsolutePath) throws {
+    func save() throws {
         try path.appending(component: "project.pbxproj").open { stream in
             // Serialize the project model we created to a plist, and return
             // its string description.
