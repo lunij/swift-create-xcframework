@@ -7,3 +7,9 @@ extension Collection {
         isEmpty ? nil : self
     }
 }
+
+extension Collection where Element: Hashable {
+    func removeDuplicates() -> [Element] {
+        spm_uniqueElements()
+    }
+}

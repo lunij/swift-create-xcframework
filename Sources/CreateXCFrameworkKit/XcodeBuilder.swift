@@ -49,38 +49,27 @@ struct XcodeBuilder {
         }
     }
 
-    struct BuildResult {
-        let target: String
-        let frameworkPath: URL
-        let debugSymbolsPath: URL
-    }
+    func build(target: String, sdk: Platform.SDK) throws -> Framework {
+        let arguments = try createArchiveCommand(target: target, sdk: sdk)
+        let process = TSCBasic.Process(arguments: arguments)
+        try process.launch()
+        let result = try process.waitUntilExit()
+        try result.utf8Output().log()
 
-    func build(targets: [String], sdk: Platform.SDK) throws -> [String: BuildResult] {
-        for target in targets {
-            let arguments = try createArchiveCommand(target: target, sdk: sdk)
-            let process = TSCBasic.Process(arguments: arguments)
-            try process.launch()
-            let result = try process.waitUntilExit()
-            try result.utf8Output().log()
-
-            switch result.exitStatus {
-            case let .terminated(code) where code != 0:
-                throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
-            case let .signalled(signal: signal):
-                throw CommandError.signalExit(signal, arguments)
-            default:
-                break
-            }
+        switch result.exitStatus {
+        case let .terminated(code) where code != 0:
+            throw CommandError.nonZeroExit(code, arguments, try result.utf8stderrOutput())
+        case let .signalled(signal: signal):
+            throw CommandError.signalExit(signal, arguments)
+        default:
+            break
         }
 
-        return targets
-            .reduce(into: [String: BuildResult]()) { dict, name in
-                dict[name] = BuildResult(
-                    target: name,
-                    frameworkPath: self.frameworkPath(target: name, sdk: sdk),
-                    debugSymbolsPath: self.debugSymbolsPath(target: name, sdk: sdk)
-                )
-            }
+        return Framework(
+            name: target,
+            url: frameworkURL(name: target.normalized, sdk: sdk),
+            debugSymbolsURL: debugSymbolsURL(sdk: sdk)
+        )
     }
 
     private func createArchiveCommand(target: String, sdk: Platform.SDK) throws -> [String] {
@@ -89,7 +78,7 @@ struct XcodeBuilder {
             "xcodebuild",
             "-project", project.path.pathString,
             "-configuration", config.options.configuration.xcodeConfigurationName,
-            "-archivePath", buildDirectory.appendingPathComponent(productName(target: target)).appendingPathComponent(sdk.archiveName).path,
+            "-archivePath", buildDirectory.appendingPathComponent(target.normalized).appendingPathComponent(sdk.archiveName).path,
             "-destination", sdk.destination,
             "BUILD_DIR=\(buildDirectory.path)",
             "SKIP_INSTALL=NO"
@@ -115,29 +104,29 @@ struct XcodeBuilder {
         return arguments
     }
 
-    private func frameworkPath(target: String, sdk: Platform.SDK) -> URL {
+    private func frameworkURL(name: String, sdk: Platform.SDK) -> URL {
         buildDirectory
-            .appendingPathComponent(productName(target: target))
+            .appendingPathComponent(name)
             .appendingPathComponent(sdk.archiveName)
             .appendingPathComponent("Products/Library/Frameworks")
-            .appendingPathComponent("\(productName(target: target)).framework")
+            .appendingPathComponent("\(name).framework")
             .absoluteURL
     }
 
-    private func debugSymbolsPath(target _: String, sdk: Platform.SDK) -> URL {
+    private func debugSymbolsURL(sdk: Platform.SDK) -> URL {
         buildDirectory
             .appendingPathComponent(sdk.releaseFolder)
     }
 
     private func dSYMPath(target: String, path: URL) -> URL {
         path
-            .appendingPathComponent("\(productName(target: target)).framework.dSYM")
+            .appendingPathComponent("\(target.normalized).framework.dSYM")
     }
 
     private func dwarfPath(target: String, path: URL) -> URL {
         path
             .appendingPathComponent("Contents/Resources/DWARF")
-            .appendingPathComponent(productName(target: target))
+            .appendingPathComponent(target.normalized)
     }
 
     private func debugSymbolFiles(target: String, path: URL) throws -> [URL] {
@@ -202,12 +191,20 @@ struct XcodeBuilder {
         }
     }
 
-    func createXCFramework(target: String, buildResults: [BuildResult]) throws -> URL {
-        let outputPath = xcframeworkPath(target: target)
+    func createXCFramework(from frameworks: [Framework]) throws -> XCFramework {
+        let frameworkNames = frameworks.map(\.name).removeDuplicates()
+        assert(frameworkNames.count < 2, "All frameworks are expected to have the same name")
 
-        try? fileManager.removeItem(at: outputPath)
+        guard let name = frameworkNames.first else {
+            throw Error.missingFrameworks
+        }
 
-        let arguments = try createXCFrameworkCommand(outputPath: outputPath, buildResults: buildResults)
+        let url = URL(fileURLWithPath: config.options.output)
+            .appendingPathComponent("\(name.normalized).xcframework")
+
+        try? fileManager.removeItem(at: url)
+
+        let arguments = try createXCFrameworkCommand(outputURL: url, frameworks: frameworks)
         let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
@@ -222,21 +219,21 @@ struct XcodeBuilder {
             break
         }
 
-        return outputPath
+        return XCFramework(name: name, url: url)
     }
 
-    private func createXCFrameworkCommand(outputPath: URL, buildResults: [BuildResult]) throws -> [String] {
+    private func createXCFrameworkCommand(outputURL: URL, frameworks: [Framework]) throws -> [String] {
         var arguments = [
             "xcrun",
             "xcodebuild",
             "-create-xcframework"
         ]
 
-        arguments += try buildResults.flatMap { result -> [String] in
-            var args = ["-framework", result.frameworkPath.absoluteURL.path]
+        arguments += try frameworks.flatMap { framework -> [String] in
+            var args = ["-framework", framework.url.absoluteURL.path]
 
             if self.config.options.debugSymbols {
-                let symbolFiles = try self.debugSymbolFiles(target: result.target, path: result.debugSymbolsPath)
+                let symbolFiles = try self.debugSymbolFiles(target: framework.name, path: framework.debugSymbolsURL)
                 for file in symbolFiles where fileManager.fileExists(atPath: file.absoluteURL.path) {
                     args += ["-debug-symbols", file.absoluteURL.path]
                 }
@@ -245,23 +242,25 @@ struct XcodeBuilder {
             return args
         }
 
-        arguments += ["-output", outputPath.path]
+        arguments += ["-output", outputURL.path]
 
         return arguments
     }
 
-    private func xcframeworkPath(target: String) -> URL {
-        URL(fileURLWithPath: config.options.output)
-            .appendingPathComponent("\(productName(target: target)).xcframework")
+    enum Error: Swift.Error, Equatable {
+        case missingFrameworks
     }
+}
 
-    private func productName(target: String) -> String {
-        // Xcode replaces any non-alphanumeric characters in the target with an underscore
-        // https://developer.apple.com/documentation/swift/imported_c_and_objective-c_apis/importing_swift_into_objective-c
-        target
-            .replacingOccurrences(of: "[^0-9a-zA-Z]", with: "_", options: .regularExpression)
-            .replacingOccurrences(of: "^[0-9]", with: "_", options: .regularExpression)
-    }
+struct Framework {
+    let name: String
+    let url: URL
+    let debugSymbolsURL: URL
+}
+
+struct XCFramework {
+    let name: String
+    let url: URL
 }
 
 private extension BuildConfiguration {
@@ -274,6 +273,13 @@ private extension BuildConfiguration {
 }
 
 private extension String {
+    var normalized: String {
+        // Xcode replaces any non-alphanumeric characters in the target with an underscore
+        // https://developer.apple.com/documentation/swift/imported_c_and_objective-c_apis/importing_swift_into_objective-c
+        replacingOccurrences(of: "[^0-9a-zA-Z]", with: "_", options: .regularExpression)
+            .replacingOccurrences(of: "^[0-9]", with: "_", options: .regularExpression)
+    }
+
     func sliceIdentifiers() throws -> [UUID] {
         let regex = try NSRegularExpression(pattern: #"^UUID: ([a-zA-Z0-9\-]+)"#, options: .anchorsMatchLines)
         let matches = regex.matches(in: self, options: [], range: NSRange(location: 0, length: count))

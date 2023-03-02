@@ -30,14 +30,14 @@ public struct Command: ParsableCommand {
         }
 
         let xcodeProject = try createXcodeProject(from: package)
-        let xcframeworkFiles = try createXCFrameworks(from: package, xcodeProject: xcodeProject)
+        let xcframeworks = try createXCFrameworks(from: package, xcodeProject: xcodeProject)
 
         if options.zip {
             let zipper = Zipper(package: package)
-            let zipped = try xcframeworkFiles.flatMap { pair -> [URL] in
-                let zip = try zipper.zip(target: pair.0, version: self.options.zipVersion, file: pair.1)
+            let zipped = try xcframeworks.flatMap { xcframework -> [URL] in
+                let zip = try zipper.zip(target: xcframework.name, version: self.options.zipVersion, file: xcframework.url)
                 let checksum = try zipper.checksum(file: zip)
-                try zipper.clean(file: pair.1)
+                try zipper.clean(file: xcframework.url)
                 return [zip, checksum]
             }
 
@@ -73,30 +73,28 @@ public struct Command: ParsableCommand {
         return xcodeProject
     }
 
-    private func createXCFrameworks(from package: Package, xcodeProject: XcodeProject) throws -> [(String, URL)] {
+    private func createXCFrameworks(from package: Package, xcodeProject: XcodeProject) throws -> [XCFramework] {
         let builder = XcodeBuilder(project: xcodeProject, config: package.config)
 
         if options.clean {
             try builder.clean()
         }
 
-        var frameworkFiles: [String: [XcodeBuilder.BuildResult]] = [:]
+        let targets = package.productNames // FIXME: products need to be mapped to its targets
 
-        for sdk in package.platforms.flatMap(\.sdks) {
-            try builder.build(targets: package.productNames, sdk: sdk).forEach { key, buildResult in
-                if frameworkFiles[key] == nil {
-                    frameworkFiles[key] = []
-                }
-                frameworkFiles[key]?.append(buildResult)
-            }
+        let xcframeworks = try targets.map { target in
+            let frameworks = try builder.createFrameworks(from: target, sdks: package.platforms.flatMap(\.sdks))
+            return try builder.createXCFramework(from: frameworks)
         }
 
-        var xcframeworkFiles: [(String, URL)] = []
+        return xcframeworks
+    }
+}
 
-        try frameworkFiles.forEach { key, buildResults in
-            xcframeworkFiles.append((key, try builder.createXCFramework(target: key, buildResults: buildResults)))
+private extension XcodeBuilder {
+    func createFrameworks(from target: String, sdks: [Platform.SDK]) throws -> [Framework] {
+        try sdks.map { sdk in
+            try build(target: target, sdk: sdk)
         }
-
-        return xcframeworkFiles
     }
 }
