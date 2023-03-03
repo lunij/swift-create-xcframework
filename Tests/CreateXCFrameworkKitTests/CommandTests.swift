@@ -30,8 +30,8 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(mockLogger.infoCalls, [
             .info("Generating Xcode project"),
             .info("Compiling FixtureTarget1 for generic/platform=macOS,name=Any Mac"),
-            .info("Creating FixtureTarget1.xcframework"),
             .info("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget1.xcframework"),
             .info("Creating FixtureTarget2.xcframework")
         ])
     }

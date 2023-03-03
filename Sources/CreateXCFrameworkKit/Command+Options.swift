@@ -12,9 +12,6 @@ public extension Command {
         @Option(help: ArgumentHelp("Build with a specific configuration", valueName: "debug|release"))
         var configuration = BuildConfiguration.release
 
-        @Flag(inversion: .prefixedNo, help: "Whether to clean before we build")
-        var clean = true
-
         @Flag(inversion: .prefixedNo, help: "Whether to include debug symbols in the built XCFramework")
         var debugSymbols = true
 

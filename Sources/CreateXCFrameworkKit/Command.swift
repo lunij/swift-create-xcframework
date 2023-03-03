@@ -78,26 +78,17 @@ public struct Command: ParsableCommand {
     }
 
     private func createXCFrameworks(from package: Package, xcodeProject: XcodeProject) throws -> [XCFramework] {
-        let builder = XcodeBuilder(project: xcodeProject, config: package.config)
-
-        if options.clean {
-            try builder.clean()
-        }
+        let frameworkBuilder = FrameworkBuilder(config: package.config)
+        let xcframeworkBuilder = XCFrameworkBuilder(config: package.config)
 
         return try package
             .filteredLibraryProducts
             .flatMap(\.targets)
             .map { target in
-                let frameworks = try builder.createFrameworks(from: target, sdks: package.platforms.flatMap(\.sdks))
-                return try builder.createXCFramework(from: frameworks)
+                try frameworkBuilder.buildFrameworks(from: target, sdks: package.platforms.flatMap(\.sdks), project: xcodeProject)
             }
-    }
-}
-
-private extension XcodeBuilder {
-    func createFrameworks(from target: String, sdks: [Platform.SDK]) throws -> [Framework] {
-        try sdks.map { sdk in
-            try build(target: target, sdk: sdk)
-        }
+            .map { frameworks in
+                try xcframeworkBuilder.buildXCFramework(from: frameworks)
+            }
     }
 }
