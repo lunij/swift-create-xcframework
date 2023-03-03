@@ -27,7 +27,7 @@ struct Zipper {
             outputRedirection: .none
         )
 
-        logger.log("\nPackaging \(file.path) into \(zipURL.path)\n\n")
+        logger.info("\nPackaging \(file.path) into \(zipURL.path)\n\n")
         try process.launch()
         let result = try process.waitUntilExit()
 

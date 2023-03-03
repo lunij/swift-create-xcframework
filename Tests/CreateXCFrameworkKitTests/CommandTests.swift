@@ -17,42 +17,40 @@ final class CommandTests: XCTestCase {
     func test_manifestWithOneProduct() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithOneProduct")
         try Command.makeTestable("--platforms", "macOS").run()
-        XCTAssertEqual(mockLogger.calls[0 ... 3], [
-            .log("debug: evaluating manifest for 'test_manifestwithoneproduct' v. unknown "),
-            .log("Generating Xcode project"),
-            .log("Compiling FixtureTarget for generic/platform=macOS,name=Any Mac"),
-            .log("Command line invocation:")
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget.xcframework")
         ])
     }
 
     func test_manifestWithTwoProducts() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--platforms", "macOS").run()
-        XCTAssertEqual(mockLogger.calls[0 ... 3], [
-            .log("debug: evaluating manifest for 'test_manifestwithtwoproducts' v. unknown "),
-            .log("Generating Xcode project"),
-            .log("Compiling FixtureTarget1 for generic/platform=macOS,name=Any Mac"),
-            .log("Command line invocation:")
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget1 for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget1.xcframework"),
+            .info("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget2.xcframework")
         ])
     }
 
     func test_listProducts() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--list-products").run()
-        XCTAssertEqual(mockLogger.calls, [
-            .log("debug: evaluating manifest for 'test_listproducts' v. unknown "),
-            .log("Available FixturePackage products:\n    FixtureLibrary1\n    FixtureLibrary2")
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Available FixturePackage products:\n    FixtureLibrary1\n    FixtureLibrary2")
         ])
     }
 
     func test_filterProducts() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--platforms", "macOS", "--products", "FixtureLibrary2").run()
-        XCTAssertEqual(mockLogger.calls[0 ... 3], [
-            .log("debug: evaluating manifest for \'test_filterproducts\' v. unknown "),
-            .log("Generating Xcode project"),
-            .log("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
-            .log("Command line invocation:")
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget2.xcframework")
         ])
     }
 
@@ -67,9 +65,7 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual("\(catchedError)", "Source files for target FixtureTarget should be located under 'Sources/FixtureTarget',"
             + " or a custom sources path can be set with the 'path' property in Package.swift")
 
-        XCTAssertEqual(mockLogger.calls, [
-            .log("debug: evaluating manifest for 'test_manifestwitherrors' v. unknown ")
-        ])
+        XCTAssertEqual(mockLogger.infoCalls, [])
     }
 
     func test_manifestWithoutProducts() throws {
@@ -81,6 +77,8 @@ final class CommandTests: XCTestCase {
 
         let catchedError = try XCTUnwrap(error)
         XCTAssertEqual("\(catchedError)", "Package validation failed:\nNo library products to create XCFrameworks for were found")
+
+        XCTAssertEqual(mockLogger.infoCalls, [])
     }
 
     func test_manifestWithBinaryTargets() throws {
@@ -99,6 +97,8 @@ final class CommandTests: XCTestCase {
             Detected binary targets: BinaryTarget
             """
         )
+
+        XCTAssertEqual(mockLogger.infoCalls, [])
     }
 }
 

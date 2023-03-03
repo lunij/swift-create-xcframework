@@ -73,7 +73,7 @@ struct Package {
 
     func listProducts() {
         let productNames = manifest.libraryProducts.map(\.name).sorted()
-        logger.log("Available \(manifest.displayName) products:\n    \(productNames.joined(separator: "\n    "))")
+        logger.info("Available \(manifest.displayName) products:\n    \(productNames.joined(separator: "\n    "))")
     }
 }
 

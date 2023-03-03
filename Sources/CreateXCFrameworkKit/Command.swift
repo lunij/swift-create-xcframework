@@ -22,6 +22,10 @@ public struct Command: ParsableCommand {
     public init() {}
 
     public func run() throws {
+        if options.verbose {
+            logger = Logger(level: .verbose)
+        }
+
         let config = Config(options: options)
         let package = try Package(config: config)
 
@@ -51,7 +55,7 @@ public struct Command: ParsableCommand {
     }
 
     private func createXcodeProject(from package: Package) throws -> XcodeProject {
-        logger.log("Generating Xcode project")
+        logger.info("Generating Xcode project")
 
         let generator = XcodeProjectGenerator(
             projectName: package.name,

@@ -36,6 +36,7 @@ struct XcodeBuilder {
         let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
+        try result.utf8Output().log(level: .verbose)
 
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
@@ -48,13 +49,13 @@ struct XcodeBuilder {
     }
 
     func build(target: String, sdk: Platform.SDK) throws -> Framework {
-        logger.log("Compiling \(target) for \(sdk.destination)")
+        logger.info("Compiling \(target) for \(sdk.destination)")
 
         let arguments = try createArchiveCommand(target: target, sdk: sdk)
         let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
-        try result.utf8Output().log()
+        try result.utf8Output().log(level: .verbose)
 
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
@@ -168,7 +169,7 @@ struct XcodeBuilder {
         let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
-        try result.utf8Output().log()
+        try result.utf8Output().log(level: .verbose)
 
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
@@ -208,7 +209,7 @@ struct XcodeBuilder {
         let process = TSCBasic.Process(arguments: arguments)
         try process.launch()
         let result = try process.waitUntilExit()
-        try result.utf8Output().log()
+        try result.utf8Output().log(level: .verbose)
 
         switch result.exitStatus {
         case let .terminated(code) where code != 0:
@@ -223,7 +224,7 @@ struct XcodeBuilder {
     }
 
     private func createXCFrameworkCommand(outputURL: URL, frameworks: [Framework]) throws -> [String] {
-        logger.log("Creating \(outputURL.path)")
+        logger.info("Creating \(outputURL.lastPathComponent)")
 
         var arguments = [
             "xcrun",

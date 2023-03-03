@@ -67,6 +67,9 @@ public extension Command {
         @Flag(help: .hidden)
         var githubAction = false
 
+        @Flag(help: "Make the output verbose")
+        var verbose = false
+
         public init() {}
     }
 }
