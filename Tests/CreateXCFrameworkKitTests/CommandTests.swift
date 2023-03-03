@@ -36,6 +36,16 @@ final class CommandTests: XCTestCase {
         ])
     }
 
+    func test_manifestWithResources() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithResources")
+        try Command.makeTestable("--platforms", "macOS").run()
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget.xcframework")
+        ])
+    }
+
     func test_listProducts() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--list-products").run()
