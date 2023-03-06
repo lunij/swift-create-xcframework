@@ -33,8 +33,8 @@ public struct Command: ParsableCommand {
             return package.listProducts()
         }
 
-        let xcodeProject = try createXcodeProject(from: package)
-        let xcframeworks = try createXCFrameworks(from: package, xcodeProject: xcodeProject)
+        let frameworks = try createFrameworks(from: package, xcodeBacked: config.options.xcodeBacked)
+        let xcframeworks = try createXCFrameworks(from: frameworks, config: config)
 
         if options.zip {
             let zipper = Zipper(package: package)
@@ -77,16 +77,25 @@ public struct Command: ParsableCommand {
         return xcodeProject
     }
 
-    private func createXCFrameworks(from package: Package, xcodeProject: XcodeProject) throws -> [XCFramework] {
+    private func createFrameworks(from package: Package, xcodeBacked: Bool) throws -> [[Framework]] {
+        let xcodeProject = xcodeBacked ? try createXcodeProject(from: package) : nil
+        let sdks = package.platforms.flatMap(\.sdks)
         let frameworkBuilder = FrameworkBuilder(config: package.config)
-        let xcframeworkBuilder = XCFrameworkBuilder(config: package.config)
-
         return try package
             .filteredLibraryProducts
             .flatMap(\.targets)
             .map { target in
-                try frameworkBuilder.buildFrameworks(from: target, sdks: package.platforms.flatMap(\.sdks), project: xcodeProject)
+                if let xcodeProject {
+                    return try frameworkBuilder.buildFrameworks(from: target, sdks: sdks, projectType: .xcodeProject(xcodeProject))
+                } else {
+                    return try frameworkBuilder.buildFrameworks(from: target, sdks: sdks, projectType: .swiftPackage(package))
+                }
             }
+    }
+
+    private func createXCFrameworks(from frameworks: [[Framework]], config: Config) throws -> [XCFramework] {
+        let xcframeworkBuilder = XCFrameworkBuilder(config: config)
+        return try frameworks
             .map { frameworks in
                 try xcframeworkBuilder.buildXCFramework(from: frameworks)
             }

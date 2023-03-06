@@ -24,9 +24,31 @@ final class CommandTests: XCTestCase {
         ])
     }
 
+    func test_manifestWithOneProduct_whenXcodeBacked() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithOneProduct")
+        try Command.makeTestable("--platforms", "macOS", "--xcode-backed").run()
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget.xcframework")
+        ])
+    }
+
     func test_manifestWithTwoProducts() throws {
         try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
         try Command.makeTestable("--platforms", "macOS").run()
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget1 for generic/platform=macOS,name=Any Mac"),
+            .info("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget1.xcframework"),
+            .info("Creating FixtureTarget2.xcframework")
+        ])
+    }
+
+    func test_manifestWithTwoProducts_whenXcodeBacked() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
+        try Command.makeTestable("--platforms", "macOS", "--xcode-backed").run()
         XCTAssertEqual(mockLogger.infoCalls, [
             .info("Generating Xcode project"),
             .info("Compiling FixtureTarget1 for generic/platform=macOS,name=Any Mac"),
@@ -46,11 +68,13 @@ final class CommandTests: XCTestCase {
         ])
     }
 
-    func test_listProducts() throws {
-        try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
-        try Command.makeTestable("--list-products").run()
+    func test_manifestWithResources_whenXcodeBacked() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithResources")
+        try Command.makeTestable("--platforms", "macOS", "--xcode-backed").run()
         XCTAssertEqual(mockLogger.infoCalls, [
-            .info("Available FixturePackage products:\n    FixtureLibrary1\n    FixtureLibrary2")
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget.xcframework")
         ])
     }
 
@@ -61,6 +85,24 @@ final class CommandTests: XCTestCase {
             .info("Generating Xcode project"),
             .info("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
             .info("Creating FixtureTarget2.xcframework")
+        ])
+    }
+
+    func test_filterProducts_whenXcodeBacked() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
+        try Command.makeTestable("--platforms", "macOS", "--products", "FixtureLibrary2", "--xcode-backed").run()
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Generating Xcode project"),
+            .info("Compiling FixtureTarget2 for generic/platform=macOS,name=Any Mac"),
+            .info("Creating FixtureTarget2.xcframework")
+        ])
+    }
+
+    func test_listProducts() throws {
+        try fixtureManager.setUpFixture(named: "ManifestWithTwoProducts")
+        try Command.makeTestable("--list-products").run()
+        XCTAssertEqual(mockLogger.infoCalls, [
+            .info("Available FixturePackage products:\n    FixtureLibrary1\n    FixtureLibrary2")
         ])
     }
 

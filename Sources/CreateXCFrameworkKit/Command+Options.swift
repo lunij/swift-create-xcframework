@@ -67,6 +67,9 @@ public extension Command {
         @Flag(help: "Make the output verbose")
         var verbose = false
 
+        @Flag(help: "Generate a backing Xcode project to build the frameworks from")
+        var xcodeBacked = false
+
         public init() {}
     }
 }
