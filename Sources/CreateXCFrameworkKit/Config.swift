@@ -17,6 +17,12 @@ struct Config {
             .absoluteURL
     }
 
+    var resourceAccessorSwiftFile: URL {
+        projectBuildDirectory
+            .appendingPathComponent("Bundle+Module.swift")
+            .absoluteURL
+    }
+
     var hasDistributionBuildXcconfig: Bool {
         xcconfigOverride != nil || options.stackEvolution == false
     }

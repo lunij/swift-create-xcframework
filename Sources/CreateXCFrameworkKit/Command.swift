@@ -58,9 +58,9 @@ public struct Command: ParsableCommand {
         logger.info("Generating Xcode project")
 
         let generator = XcodeProjectGenerator(
-            projectName: package.name,
             config: package.config,
-            packageGraph: package.graph
+            packageGraph: package.graph,
+            projectName: package.name
         )
         let xcodeProject = try generator.generate()
 
