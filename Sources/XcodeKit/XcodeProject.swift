@@ -1,8 +1,7 @@
 import TSCBasic
-import XcodeKit
 
-struct XcodeProject {
-    let path: AbsolutePath
+public struct XcodeProject2 {
+    public let path: AbsolutePath
     private let project: Xcode.Project
 
     private var frameworkTargets: [Xcode.Target] {
@@ -25,7 +24,7 @@ struct XcodeProject {
         return project.mainGroup.addGroup(path: "", name: name)
     }
 
-    func enableDistribution(targets: [String], xcconfig: RelativePath) {
+    public func enableDistribution(targets: [String], xcconfig: AbsolutePath) {
         let group = configGroup
         let ref = group.addFileReference(
             path: xcconfig.pathString,
@@ -37,7 +36,7 @@ struct XcodeProject {
         }
     }
 
-    func save() throws {
+    public func save() throws {
         try path.appending(component: "project.pbxproj").open { stream in
             // Serialize the project model we created to a plist, and return
             // its string description.

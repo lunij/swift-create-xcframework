@@ -1,6 +1,7 @@
 import Foundation
 import PackageModel
 import TSCBasic
+import XcodeKit
 
 struct FrameworkBuilder {
     let config: Config
@@ -22,13 +23,13 @@ struct FrameworkBuilder {
         self.fileManager = fileManager
     }
 
-    func buildFrameworks(from target: String, sdks: [Platform.SDK], project: XcodeProject) throws -> [Framework] {
+    func buildFrameworks(from target: String, sdks: [Platform.SDK], project: XcodeProject2) throws -> [Framework] {
         try sdks.map { sdk in
             try buildFramework(target: target, sdk: sdk, project: project)
         }
     }
 
-    func buildFramework(target: String, sdk: Platform.SDK, project: XcodeProject) throws -> Framework {
+    func buildFramework(target: String, sdk: Platform.SDK, project: XcodeProject2) throws -> Framework {
         logger.info("Compiling \(target) for \(sdk.destination)")
 
         let arguments = try archiveCommand(target: target, sdk: sdk, project: project)
@@ -53,7 +54,7 @@ struct FrameworkBuilder {
         )
     }
 
-    private func archiveCommand(target: String, sdk: Platform.SDK, project: XcodeProject) throws -> [String] {
+    private func archiveCommand(target: String, sdk: Platform.SDK, project: XcodeProject2) throws -> [String] {
         var arguments = [
             "xcrun",
             "xcodebuild",

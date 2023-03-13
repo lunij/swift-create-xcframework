@@ -40,7 +40,11 @@ let package = Package(
             plugins: .default
         ),
         .target(
-            name: "XcodeKit"
+            name: "XcodeKit",
+            dependencies: [
+                .product(name: "SwiftPM-auto", package: "swift-package-manager"),
+                .product(name: "SwiftToolsSupport-auto", package: "swift-tools-support-core")
+            ]
         )
     ],
     swiftLanguageVersions: [

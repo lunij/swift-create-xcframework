@@ -1,4 +1,6 @@
+import Basics
 import TSCBasic
+import XcodeKit
 
 final class CreateXCFrameworksUseCase {
     func createXCFrameworks(from package: Package) throws -> [XCFramework] {
@@ -17,25 +19,19 @@ final class CreateXCFrameworksUseCase {
             }
     }
 
-    private func createXcodeProject(from package: Package) throws -> XcodeProject {
+    private func createXcodeProject(from package: Package) throws -> XcodeProject2 {
         logger.info("Generating Xcode project")
 
         let generator = XcodeProjectGenerator(
-            config: package.config,
+            projectName: package.name,
+            projectDirectory: AbsolutePath(package.config.projectBuildDirectory.path),
             packageGraph: package.graph,
-            projectName: package.name
+            hasDistributionBuildXcconfig: package.config.hasDistributionBuildXcconfig,
+            stackEvolution: package.config.options.stackEvolution,
+            targets: package.filteredLibraryProducts.flatMap(\.targets),
+            observabilityScope: ObservabilitySystem.shared.topScope
         )
         let xcodeProject = try generator.generate()
-
-        // we've applied the xcconfig to everything, but some dependencies (*cough* swift-nio)
-        // have build errors, so we remove it from targets we're not building
-        if package.config.options.stackEvolution == false {
-            xcodeProject.enableDistribution(
-                targets: package.filteredLibraryProducts.flatMap(\.targets),
-                xcconfig: AbsolutePath(package.config.distributionBuildXcconfig.path).relative(to: AbsolutePath(package.config.packageDirectory.path))
-            )
-        }
-
         try xcodeProject.save()
         return xcodeProject
     }
