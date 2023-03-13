@@ -33,8 +33,8 @@ public struct Command: ParsableCommand {
             return package.listProducts()
         }
 
-        let xcodeProject = try createXcodeProject(from: package)
-        let xcframeworks = try createXCFrameworks(from: package, xcodeProject: xcodeProject)
+        let useCase = CreateXCFrameworksUseCase()
+        let xcframeworks = try useCase.createXCFrameworks(from: package)
 
         if options.zip {
             let zipper = Zipper(package: package)
@@ -52,43 +52,5 @@ public struct Command: ParsableCommand {
                 try data.write(to: url)
             }
         }
-    }
-
-    private func createXcodeProject(from package: Package) throws -> XcodeProject {
-        logger.info("Generating Xcode project")
-
-        let generator = XcodeProjectGenerator(
-            config: package.config,
-            packageGraph: package.graph,
-            projectName: package.name
-        )
-        let xcodeProject = try generator.generate()
-
-        // we've applied the xcconfig to everything, but some dependencies (*cough* swift-nio)
-        // have build errors, so we remove it from targets we're not building
-        if options.stackEvolution == false {
-            xcodeProject.enableDistribution(
-                targets: package.filteredLibraryProducts.flatMap(\.targets),
-                xcconfig: AbsolutePath(package.config.distributionBuildXcconfig.path).relative(to: AbsolutePath(package.config.packageDirectory.path))
-            )
-        }
-
-        try xcodeProject.save()
-        return xcodeProject
-    }
-
-    private func createXCFrameworks(from package: Package, xcodeProject: XcodeProject) throws -> [XCFramework] {
-        let frameworkBuilder = FrameworkBuilder(config: package.config)
-        let xcframeworkBuilder = XCFrameworkBuilder(config: package.config)
-
-        return try package
-            .filteredLibraryProducts
-            .flatMap(\.targets)
-            .map { target in
-                try frameworkBuilder.buildFrameworks(from: target, sdks: package.platforms.flatMap(\.sdks), project: xcodeProject)
-            }
-            .map { frameworks in
-                try xcframeworkBuilder.buildXCFramework(from: frameworks)
-            }
     }
 }
