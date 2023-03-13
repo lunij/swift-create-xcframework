@@ -1,5 +1,5 @@
 import TSCBasic
-import Xcodeproj
+import XcodeKit
 
 struct XcodeProject {
     let path: AbsolutePath

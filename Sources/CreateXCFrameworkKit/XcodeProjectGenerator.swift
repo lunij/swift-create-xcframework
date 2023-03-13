@@ -1,7 +1,7 @@
 import Basics
 import PackageGraph
 import TSCBasic
-import Xcodeproj
+import XcodeKit
 
 struct XcodeProjectGenerator {
     private enum Constants {
@@ -15,7 +15,7 @@ struct XcodeProjectGenerator {
     init(projectName: String, config: Config, packageGraph: PackageGraph) {
         self.config = config
         self.packageGraph = packageGraph
-        projectPath = Xcodeproj.XcodeProject.makePath(
+        projectPath = XcodeKit.XcodeProject.makePath(
             outputDir: AbsolutePath(config.projectBuildDirectory.path),
             projectName: projectName
         )
