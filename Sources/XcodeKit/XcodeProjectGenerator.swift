@@ -53,11 +53,9 @@ public struct XcodeProjectGenerator {
         let project = try pbxproj(
             xcodeprojPath: projectPath,
             graph: packageGraph,
-            extraDirs: [],
-            extraFiles: [resourceAccessorSwiftFile],
+            generatedSourceFiles: [resourceAccessorSwiftFile],
             options: XcodeprojOptions(
-                xcconfigOverrides: xcconfigOverrides,
-                addExtraFiles: true
+                xcconfigOverrides: xcconfigOverrides
             ),
             fileSystem: localFileSystem,
             observabilityScope: observabilityScope
@@ -106,22 +104,24 @@ public struct XcodeProjectGenerator {
                 import Foundation
 
                 extension Bundle {
-                    let bundleName = "\(projectName)"
+                    static var module: Bundle = {
+                        let bundleName = "\(projectName)"
 
-                    let urls = [
-                        Bundle.main.resourceURL,
-                        Bundle(for: BundleFinder.self).resourceURL,
-                        Bundle.main.bundleURL
-                    ]
+                        let urls = [
+                            Bundle.main.resourceURL,
+                            Bundle(for: BundleFinder.self).resourceURL,
+                            Bundle.main.bundleURL
+                        ]
 
-                    for candidate in candidates {
-                        let bundlePath = candidate?.appendingPathComponent(bundleName + ".bundle")
-                        if let bundle = bundlePath.flatMap(Bundle.init(url:)) {
-                            return bundle
+                        for url in urls {
+                            let bundleURL = url?.appendingPathComponent(bundleName + ".bundle")
+                            if let bundle = bundleURL.flatMap(Bundle.init(url:)) {
+                                return bundle
+                            }
                         }
-                    }
 
-                    fatalError("unable to find bundle named " + bundleName)
+                        fatalError("unable to find bundle named " + bundleName)
+                    }()
                 }
 
                 private class BundleFinder {}

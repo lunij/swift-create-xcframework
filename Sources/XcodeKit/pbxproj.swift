@@ -32,8 +32,9 @@ public enum ProjectGenerationError: Swift.Error {
 public func pbxproj(
     xcodeprojPath: AbsolutePath,
     graph: PackageGraph,
-    extraDirs: [AbsolutePath],
-    extraFiles: [AbsolutePath],
+    extraDirs: [AbsolutePath] = [],
+    extraFiles: [AbsolutePath] = [],
+    generatedSourceFiles: [AbsolutePath] = [],
     options: XcodeprojOptions,
     fileSystem: FileSystem,
     observabilityScope: ObservabilityScope
@@ -43,6 +44,7 @@ public func pbxproj(
         graph: graph,
         extraDirs: extraDirs,
         extraFiles: extraFiles,
+        generatedSourceFiles: generatedSourceFiles,
         options: options,
         fileSystem: fileSystem,
         observabilityScope: observabilityScope.makeChildScope(description: "Xcode Project")
@@ -61,6 +63,7 @@ public func xcodeProject(
     graph: PackageGraph,
     extraDirs: [AbsolutePath],
     extraFiles: [AbsolutePath],
+    generatedSourceFiles: [AbsolutePath],
     options: XcodeprojOptions,
     fileSystem: FileSystem,
     observabilityScope: ObservabilityScope
@@ -561,6 +564,15 @@ public func xcodeProject(
 
             // Also add the source file to the compile phase.
             compilePhase.addBuildFile(fileRef: srcFileRef)
+        }
+
+        for generatedSourceFile in generatedSourceFiles {
+            let fileRef = project.mainGroup.addFileReference(
+                path: generatedSourceFile.pathString,
+                pathBase: .projectDir,
+                name: generatedSourceFile.basename
+            )
+            compilePhase.addBuildFile(fileRef: fileRef)
         }
 
         // Set C/C++ language standard.
